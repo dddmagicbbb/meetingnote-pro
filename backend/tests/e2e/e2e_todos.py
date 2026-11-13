@@ -67,6 +67,7 @@ with sync_playwright() as p:
     ok("E-11 삭제", late["id"] not in [t["id"] for t in api.get(f"/teams/{tid}/todos",headers=kim["h"]).json()])
     # E-12 빈 상태
     e=page_as(b,park,"/todos.html"); api.delete(f"/todos/{pk['id']}",headers=park["h"]); e.reload(); e.wait_for_timeout(600)
+    e.wait_for_selector("#empty", state="visible", timeout=15000)
     ok("E-12 빈 상태", e.is_visible("#empty"))
     # E-05 좁은 화면 눌러서 칸 고르기
     n=page_as(b,kim,"/todos.html",width=360); n.wait_for_timeout(500)

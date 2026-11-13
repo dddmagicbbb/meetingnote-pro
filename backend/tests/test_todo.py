@@ -189,3 +189,23 @@ def test_migrate_adds_column_and_fills(tmp_path):
     with eng.connect() as c:
         got = dict(c.execute(sa.text("SELECT what, due_date FROM todos")).all())
     assert got == {"a": "2026-10-02", "b": None, "c": "2026-11-14"}
+
+
+def test_create_all_retries_on_concurrent_ddl(monkeypatch):
+    """동시 콜드스타트에서 첫 시도가 DuplicateTable 로 실패해도 다시 시도해 통과."""
+    from sqlalchemy.exc import ProgrammingError
+
+    from backend import db
+    calls = {"n": 0}
+    real = db.Base.metadata.create_all
+
+    def flaky(bind, *a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ProgrammingError("CREATE TABLE users", {}, Exception("relation users already exists"))
+        return real(bind, *a, **k)
+
+    monkeypatch.setattr(db.Base.metadata, "create_all", flaky)
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    db.create_all()
+    assert calls["n"] == 2

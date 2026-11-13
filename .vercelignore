@@ -1,0 +1,19 @@
+# 배포에 넣지 않는 것 - 함수에는 backend/ 와 frontend/ 만 필요
+.agents/
+.claude/
+.venv/
+.pytest_cache/
+**/__pycache__/
+backend/tests/
+publish/
+docs/
+openspec/
+*.db
+.env
+.env.*
+!.env.example
+회의_녹음.wav
+TODO.md
+투두가드설명서.md
+skills-lock.json
+requirements-dev.txt

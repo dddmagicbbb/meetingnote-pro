@@ -1,0 +1,20 @@
+[project]
+name = "meetingnote-pro"
+version = "1.0.0"
+description = "MeetingNote Pro - 팀 회의록 · 할 일 · 활동기록"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]",
+    "pyjwt",
+    "bcrypt",
+    "python-multipart",
+    "python-dotenv",
+    "google-genai",
+]
+
+[tool.vercel]
+# 모듈:객체 형식. 파일 경로로 적으면 빌드 실패 (스토리보드 H-01)
+entrypoint = "backend.main:app"

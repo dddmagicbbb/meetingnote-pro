@@ -23,10 +23,23 @@ def get_db():
         db.close()
 
 
-def create_all():
+def create_all(retries: int = 3):
+    """테이블 생성 + 이관. 서버리스에서 인스턴스 여럿이 동시에 시작하면 같은 테이블을 동시에
+    만들다 한쪽이 「이미 있음」 오류를 낸다 - 잠깐 기다렸다 다시 하면 checkfirst 로 지나간다."""
+    import time
+
+    from sqlalchemy.exc import IntegrityError, ProgrammingError
+
     from . import models  # noqa: F401 - 테이블 등록
-    Base.metadata.create_all(engine)
-    migrate()
+    for attempt in range(1, retries + 1):
+        try:
+            Base.metadata.create_all(engine)
+            migrate()
+            return
+        except (ProgrammingError, IntegrityError):
+            if attempt == retries:
+                raise
+            time.sleep(0.5 * attempt)
 
 
 def migrate(bind=None) -> int:

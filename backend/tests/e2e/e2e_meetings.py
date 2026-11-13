@@ -30,6 +30,7 @@ with sync_playwright() as p:
     ok("필수값 채우면 저장 가능", not pg.is_disabled("#saveBtn"))
     pg.click("#saveBtn"); ok("C-10 정리 중 잠금", pg.is_disabled("#saveBtn"))
     pg.wait_for_selector("#newModal", state="hidden", timeout=120000)
+    pg.wait_for_function("document.getElementById('list').innerText.includes('2차 스프린트')", timeout=15000)
     ok("C-11 저장 → 목록 1건", "2차 스프린트" in pg.inner_text("#list"))
     api.post(f"/teams/{team['id']}/meetings",json={"title":"배포 환경 점검","met_at":"2026-09-18T01:30:00Z","attendees":"박과장, 최선임","body":"배포는 Vercel 로 확정합니다."},headers=kim["h"]).raise_for_status()
     pg.reload(); pg.wait_for_load_state("networkidle")
