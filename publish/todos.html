@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetingNote Pro - 할 일 칸반</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
+</head>
+
+<body class="bg-page dark:bg-canvas text-ink dark:text-fg font-sans antialiased min-h-screen flex flex-col">
+
+<header class="sticky top-0 z-30 bg-white dark:bg-canvas border-b border-line dark:border-edge">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+    <a href="meetings.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-ink dark:bg-fg grid place-items-center text-white dark:text-canvas font-extrabold text-sm">M</div>
+      <span class="font-extrabold tracking-tight">MeetingNote Pro</span>
+    </a>
+    <nav class="flex items-center gap-1 text-[13px] font-bold ml-2 min-w-0 overflow-x-auto">
+      <a href="meetings.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">회의록</a>
+      <span class="px-2.5 py-1 rounded-lg bg-page dark:bg-chip">할 일</span>
+      <a href="team.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">팀</a>
+      <a href="profile.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">내 정보</a>
+    </nav>
+    <div class="ml-auto" id="themeSlot"></div>
+  </div>
+</header>
+
+<main class="flex-1 w-full max-w-6xl mx-auto px-4 py-5">
+
+  <!-- 탭 + 필터 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-4 mb-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex gap-1 p-1 rounded-xl bg-page dark:bg-chip">
+        <button id="tabMine" class="px-3 py-1.5 rounded-lg text-[13px] font-bold transition">내 할 일</button>
+        <button id="tabAll"  class="px-3 py-1.5 rounded-lg text-[13px] font-bold transition">전체</button>
+      </div>
+      <select id="fWho" class="h-11 px-3 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-[13px] font-bold focus:outline-none focus:border-blue-dot transition">
+        <option>담당자 전체</option><option>김대리</option><option>박과장</option><option>이주임</option><option>최선임</option><option>미정</option>
+      </select>
+      <span id="sum" class="ml-auto text-[12px] text-ink-3 dark:text-dim"></span>
+      <button id="newBtn" type="button" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">새 할 일</button>
+    </div>
+    <!-- 퍼블리싱 확인용. 어느 API 가 이 상태를 만드는지 적는 줄이라 실제 구현에는 넣지 않는다 -->
+    <p id="note" class="mt-2.5 text-[11px] text-ink-3 dark:text-dim"></p>
+  </section>
+
+  <!-- 칸반 3열 -->
+  <div id="board" class="grid gap-3 md:grid-cols-3"></div>
+
+  <div id="empty" class="hidden rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge px-5 py-12 text-center">
+    <p class="text-sm font-bold" id="emptyTitle">배정된 할 일이 없음</p>
+    <p class="text-[12px] text-ink-2 dark:text-dim mt-1" id="emptySub">회의록을 올리면 자동으로 뽑히고, 「새 할 일」로 직접 등록도 가능</p>
+  </div>
+
+  <p class="mt-3 text-[11px] text-ink-3 dark:text-dim">카드를 끌어 옮기거나, 눌러서 옮길 칸을 고릅니다. 좁은 화면에서는 누르는 길을 씁니다.</p>
+</main>
+
+<!-- 칸 고르기 팝업 (E-05) -->
+<div id="pickModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5 shadow-xl">
+    <div class="flex items-center mb-3">
+      <h2 id="pickTitle" class="text-sm font-extrabold flex-1">칸 고르기</h2>
+      <button data-close class="w-7 h-7 grid place-items-center rounded-lg text-ink-3 hover:bg-page dark:hover:bg-chip" aria-label="닫기">x</button>
+    </div>
+    <div id="pickBtns" class="grid grid-cols-3 gap-2"></div>
+  </section>
+</div>
+
+<!-- 새 할 일 팝업 - 회의록 없이 칸반에서 바로 만든다 (E-13, POST /api/teams/{id}/todos) -->
+<div id="newModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-md rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5 shadow-xl">
+    <div class="flex items-center mb-3">
+      <h2 class="text-sm font-extrabold flex-1">새 할 일</h2>
+      <button data-close class="w-7 h-7 grid place-items-center rounded-lg text-ink-3 hover:bg-page dark:hover:bg-chip" aria-label="닫기">x</button>
+    </div>
+    <label class="block text-xs font-bold mb-1.5">내용 *</label>
+    <input id="nWhat" placeholder="할 일 내용" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+    <div class="grid grid-cols-2 gap-3 mt-3">
+      <div>
+        <label class="block text-xs font-bold mb-1.5">담당자</label>
+        <select id="nWho" class="w-full h-11 px-3 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-[13px] font-bold focus:outline-none focus:border-blue-dot transition">
+          <option>미정</option><option>김대리</option><option>박과장</option><option>이주임</option><option>최선임</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold mb-1.5">기한</label>
+        <input id="nWhen" placeholder="예: 이번 주 안" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </div>
+    </div>
+    <label class="block text-xs font-bold mt-3 mb-1.5">출처</label>
+    <input value="직접 등록" disabled class="w-full h-11 px-3.5 rounded-xl bg-line dark:bg-edge border border-line dark:border-edge text-sm text-ink-3 dark:text-dim">
+    <div class="mt-4 flex gap-2.5 justify-end">
+      <button data-close type="button" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-sm font-bold hover:border-ink dark:hover:border-dim transition">취소</button>
+      <button id="nSave" type="button" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">등록</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.getElementById("themeSlot").innerHTML = window.THEME_BTN;
+  window.initTheme(() => render());
+
+  const $ = (id) => document.getElementById(id);
+  const COLS = [
+    {key:"OPEN",  label:"대기", color:"orange"},
+    {key:"DOING", label:"진행", color:"blue"},
+    {key:"DONE",  label:"완료", color:"green"}
+  ];
+
+  const ALL = [
+    {id:1, what:"목록 화면 및 검색 구현", who:"김대리", when:"다음 주 금요일", status:"DOING", from:"2차 스프린트 계획 회의", by:"김대리", late:false},
+    {id:2, what:"받아쓰기 오류 처리",     who:"이주임", when:"이번 주 안",     status:"OPEN",  from:"2차 스프린트 계획 회의", by:"김대리", late:false},
+    {id:3, what:"사용자 다섯 분 인터뷰", who:"미정",   when:"미정",           status:"OPEN",  from:"2차 스프린트 계획 회의", by:"김대리", late:false},
+    {id:4, what:"Neon 연결 정보 정리",    who:"박과장", when:"어제",           status:"DOING", from:"배포 환경 점검",         by:"박과장", late:true},
+    {id:5, what:"배포 키 환경변수 이전",  who:"최선임", when:"지난 주",        status:"DONE",  from:"배포 환경 점검",         by:"박과장", late:false},
+    {id:6, what:"MVP 범위 문서화",        who:"김대리", when:"9월 12일",       status:"DONE",  from:"기획 킥오프",           by:"김대리", late:false},
+    {id:7, what:"회의실 예약 규칙 정리",  who:"이주임", when:"이번 주 안",     status:"OPEN",  from:"직접 등록",             by:"이주임", late:false}
+  ];
+
+  // 지금 보는 사람. 김대리가 owner. 「할 일 삭제」 상태에서는 member(이주임)로 본다
+  let me = "김대리", role = "owner";
+  // 서버 응답 흉내 - 할 일마다 can_delete 를 보는 사람 기준으로 계산해 내려준다
+  //   삭제는 만든 사람 · 담당자 · owner 만 true. 화면은 이 값으로 버튼을 켜고 끈다
+  const serve = (t) => ({...t, can_delete: role === "owner" || t.by === me || t.who === me});
+
+  let DATA = [], mine = true, dragId = null, overCol = null;
+  // 스토리보드 장면용 - hl: 카드 강조 {id: 색}, hlCol: 칸 강조, showGhost: 끌어 오는 반투명 사본, menuId: 담당자 목록이 열린 카드
+  let hl = {}, hlCol = null, showGhost = false, menuId = null;
+
+  const WHO = ["미정", "김대리", "이주임", "박과장", "최선임"];
+  const WHEN = ["미정", "오늘", "이번 주 안", "다음 주 금요일", "어제", "지난 주"];
+  const LATE = ["어제", "지난 주", "지난 달"];
+
+  const chip = (t) => `
+    <article data-id="${t.id}"
+      class="card relative touch-none select-none cursor-grab active:cursor-grabbing rounded-xl bg-white dark:bg-surface border
+             ${hl[t.id] ? "border-" + hl[t.id] + "-dot ring-2 ring-" + hl[t.id] + "-dot/40" : "border-line dark:border-edge"}
+             ${t.late ? window.STRIPE.red : ""} p-3 hover:border-ink dark:hover:border-dim transition
+             ${dragId === t.id ? "opacity-40 border-dashed" : ""}">
+      <p class="text-[13px] font-bold leading-snug">${t.what}</p>
+      <p class="mt-1 text-[11px] text-ink-3 dark:text-dim">${t.from}</p>
+      <div class="mt-2 flex items-center gap-1.5">
+        <span class="relative">
+          <button type="button" data-act="assign" data-id="${t.id}"
+            class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-page dark:bg-chip ${t.who === "미정" ? "text-ink-3 dark:text-dim" : "text-ink-2 dark:text-dim"} hover:ring-1 hover:ring-ink-3 transition
+                   ${menuId === t.id ? "ring-2 ring-orange-dot" : ""}">${t.who}  v</button>
+          ${menuId === t.id ? `<div class="${window.UI.menu}">
+            ${WHO.map(w => `<button type="button" data-pick="${w}" data-id="${t.id}" class="${w === "박과장" ? window.UI.menuOn : window.UI.menuItem}">${w}</button>`).join("")}
+          </div>` : ""}
+        </span>
+        <button type="button" data-act="due" data-id="${t.id}"
+          class="px-2 py-0.5 rounded-md text-[10px] font-bold ${t.late ? "text-red-text dark:text-red-dot" : "text-ink-2 dark:text-dim"} bg-page dark:bg-chip hover:ring-1 hover:ring-ink-3 transition">${t.when}</button>
+        <button type="button" data-act="del" data-id="${t.id}" ${t.can_delete ? "" : "disabled"}
+          class="ml-auto px-2 py-0.5 rounded-md text-[10px] font-bold bg-page dark:bg-chip transition ${t.can_delete ? "text-red-text dark:text-red-dot hover:ring-1 hover:ring-red-dot" : "text-ink-3 dark:text-dim opacity-40 cursor-not-allowed"}">삭제</button>
+      </div>
+    </article>`;
+
+  // 끌어 오는 중인 카드의 반투명 사본 (E-03)
+  const ghostCard = (t) => `
+    <article class="rounded-xl bg-white/70 dark:bg-surface/70 border-2 border-blue-dot p-3 shadow-lg rotate-1">
+      <p class="text-[13px] font-bold leading-snug">${t.what}</p>
+      <p class="mt-1 text-[11px] font-bold text-orange-text dark:text-orange-dot">끌어 놓기</p>
+    </article>`;
+
+  function render(){
+    const rows = DATA;
+    $("board").innerHTML = COLS.map(c => {
+      const items = rows.filter(t => t.status === c.key);
+      const hot = overCol === c.key;
+      const mark = hlCol === c.key;
+      const g = showGhost && hot ? rows.find(t => t.id === dragId) : null;
+      return `
+      <section data-col="${c.key}"
+        class="dropzone rounded-2xl border ${hot ? "border-dashed border-2 border-blue-dot bg-blue-dot/10" : "bg-white dark:bg-surface " + (mark ? "border-2 border-ink dark:border-fg" : "border-line dark:border-edge")}
+               ${window.STRIPE[c.color]} p-4 min-h-[220px] transition">
+        <div class="flex items-baseline gap-2 mb-3">
+          <h2 class="text-sm font-extrabold ${window.LABEL[c.color]}">${c.label}</h2>
+          <span class="text-[11px] text-ink-3 dark:text-dim">${items.length}건</span>
+          ${hot ? `<span class="ml-auto text-[10px] font-extrabold text-blue-text dark:text-blue-dot">여기에 놓기</span>` : ""}
+          ${mark ? `<span class="ml-auto text-[10px] font-extrabold">완료 ${items.length}건도 그대로 남음</span>` : ""}
+        </div>
+        <div class="space-y-2.5">${items.map(chip).join("") + (g ? ghostCard(g) : "") ||
+          `<p class="text-[12px] text-ink-3 dark:text-dim py-2">없음</p>`}</div>
+      </section>`;
+    }).join("");
+    $("board").classList.toggle("hidden", rows.length === 0);
+    $("empty").classList.toggle("hidden", rows.length > 0);
+    const done = rows.filter(t => t.status === "DONE").length;
+    $("sum").textContent = rows.length ? `${done} / ${rows.length} 완료` : "";
+    $("tabMine").className = "px-3 py-1.5 rounded-lg text-[13px] font-bold transition " +
+      (mine ? "bg-white dark:bg-surface shadow-sm" : "text-ink-2 dark:text-dim");
+    $("tabAll").className = "px-3 py-1.5 rounded-lg text-[13px] font-bold transition " +
+      (!mine ? "bg-white dark:bg-surface shadow-sm" : "text-ink-2 dark:text-dim");
+    bindDrag();
+    bindBadge();
+  }
+
+  // 담당자 배지 - 눌러서 드롭다운 목록에서 고른다. 기한 배지 - 눌러서 바꾼다 (PUT /api/todos/{id})
+  function bindBadge(){
+    document.querySelectorAll("[data-act]").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const t = DATA.find(x => x.id === +el.dataset.id);
+        if (!t) return;
+        if (el.dataset.act === "assign") {
+          menuId = menuId === t.id ? null : t.id;
+        } else if (el.dataset.act === "del") {
+          if (!t.can_delete) return;
+          const k = DATA.indexOf(t);
+          if (k >= 0) DATA.splice(k, 1);
+          window.toast("red", "할 일 삭제", "할 일 지우는 중" + t.id + "  -> 204   만든 사람 · 담당자 · owner 만");
+        } else {
+          t.when = WHEN[(WHEN.indexOf(t.when) + 1) % WHEN.length];
+          t.late = LATE.includes(t.when) && t.status !== "DONE";
+          window.toast("green", "기한 변경", "할 일 고치는 중" + t.id + "  {due_text} -> 200");
+        }
+        render();
+      });
+      el.addEventListener("pointerdown", (e) => e.stopPropagation());
+    });
+    document.querySelectorAll("[data-pick]").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const t = DATA.find(x => x.id === +el.dataset.id);
+        if (!t) return;
+        t.who = el.dataset.pick; menuId = null;
+        window.toast("green", "담당자 배정 - " + t.who, "PUT /api/todos/" + t.id + " 200");
+        render();
+      });
+      el.addEventListener("pointerdown", (e) => e.stopPropagation());
+    });
+  }
+
+  // 끌어 옮기기 - 포인터 이벤트 한 벌로 마우스 · 터치 · 펜을 모두 받는다
+  //   HTML5 네이티브 드래그(draggable + dragstart)는 터치에서 이벤트가 뜨지 않아
+  //   휴대폰에서 카드가 움직이지 않았다. pointer 계열은 입력 장치를 가리지 않는다
+  let ghost = null, startX = 0, startY = 0, moved = false, dragEl = null;
+
+  function colUnder(x, y){
+    const el = document.elementFromPoint(x, y);
+    const z = el && el.closest(".dropzone");
+    return z ? z.dataset.col : null;
+  }
+
+  // 누르기만 카드에 걸고, 움직임 · 놓기는 문서 한 곳에서 받는다
+  //   끄는 중 render() 로 카드가 새로 그려지면 카드에 건 이벤트와 포인터 캡처가 사라져
+  //   빈 칸(0건인 완료 칸 등)에 놓을 때 이동하지 않았다
+  function bindDrag(){
+    document.querySelectorAll(".card").forEach(el => {
+      el.addEventListener("pointerdown", (e) => {
+        if (e.target.closest("[data-act]")) return;   // 배지는 누르는 것이지 끄는 것이 아님
+        if (e.button !== undefined && e.button !== 0) return;
+        dragId = +el.dataset.id; showGhost = false; dragEl = el;
+        startX = e.clientX; startY = e.clientY; moved = false;
+      });
+    });
+  }
+
+  document.addEventListener("pointermove", (e) => {
+        if (dragId === null) return;
+        if (!moved) {
+          if (Math.abs(e.clientX - startX) < 6 && Math.abs(e.clientY - startY) < 6) return;
+          moved = true;
+          const r = dragEl.getBoundingClientRect();
+          ghost = dragEl.cloneNode(true);
+          ghost.classList.add("fixed", "pointer-events-none", "z-50", "opacity-80", "shadow-lg");
+          ghost.style.width = r.width + "px";
+          document.body.appendChild(ghost);
+          render();
+        }
+        e.preventDefault();
+        ghost.style.left = (e.clientX - 40) + "px";
+        ghost.style.top = (e.clientY - 18) + "px";
+        const c = colUnder(e.clientX, e.clientY);
+        if (c !== overCol) { overCol = c; render(); }
+  });
+  {
+      const finish = (e) => {
+        if (dragId === null) return;
+        if (ghost) { ghost.remove(); ghost = null; }
+        const id = dragId;
+        const col = moved ? colUnder(e.clientX, e.clientY) : null;
+        const wasTap = !moved;
+        const t = DATA.find(x => x.id === id);
+        if (t && col && t.status !== col) moveTo(t, col);
+        dragId = null; overCol = null; moved = false; dragEl = null;
+        render();
+        // 끌지 않고 눌렀으면 옮길 칸을 고르는 팝업을 연다 (휴대폰에서 유일한 길)
+        if (wasTap && t) openPicker(id);
+      };
+      document.addEventListener("pointerup", finish);
+      document.addEventListener("pointercancel", finish);
+  }
+
+  function moveTo(t, col){
+    const from = COLS.find(c => c.key === t.status).label, to = COLS.find(c => c.key === col).label;
+    t.status = col;
+    t.late = LATE.includes(t.when) && t.status !== "DONE";
+    hl = {}; hl[t.id] = "green";
+    window.toast("green", "이동 완료 - " + from + " > " + to, "PUT /api/todos/" + t.id + " 200");
+  }
+
+  // 카드를 누르면 뜨는 칸 고르기 팝업. 끌 수 없는 좁은 화면에서 쓰는 길 (E-05)
+  function openPicker(id){
+    const t = DATA.find(x => x.id === id);
+    if (!t) return;
+    $("pickTitle").textContent = "칸 고르기 - " + t.what;
+    $("pickBtns").innerHTML = COLS.map(c => t.status === c.key
+      ? `<button type="button" disabled class="h-11 rounded-xl bg-page dark:bg-chip text-[13px] font-bold text-ink-3 dark:text-dim">${c.label} (지금)</button>`
+      : `<button type="button" data-to="${c.key}" class="h-11 rounded-xl bg-white dark:bg-surface border border-line dark:border-edge text-[13px] font-bold ${window.LABEL[c.color]} hover:border-ink dark:hover:border-dim transition">${c.label}</button>`
+    ).join("");
+    $("pickBtns").querySelectorAll("[data-to]").forEach(b => b.onclick = () => { moveTo(t, b.dataset.to); closeModals(); render(); });
+    $("pickModal").classList.remove("hidden");
+  }
+  const closeModals = () => { $("pickModal").classList.add("hidden"); $("newModal").classList.add("hidden"); };
+  document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeModals);
+
+  const reset = () => { closeModals(); hl = {}; hlCol = null; showGhost = false; menuId = null; dragId = null; overCol = null; $("fWho").selectedIndex = 0; };
+
+  // 스토리보드 E-01 ~ E-13
+  const STATES = {
+    "mine": () => {
+      reset(); me = "김대리"; role = "owner";
+      mine = true; DATA = ALL.filter(t => t.who === "김대리").map(serve); render();
+      $("note").textContent = "로그인한 사람(김대리)에게 배정된 것만. 대기 칸 할 일 없음";
+    },
+    "all": () => {
+      reset(); me = "김대리"; role = "owner";
+      mine = false; DATA = ALL.map(serve); render();
+      $("note").textContent = "팀 전체. 카드마다 출처 회의록 제목이 함께 옴";
+    },
+    "drag": () => {
+      STATES["all"]();
+      dragId = 2; overCol = "DOING"; showGhost = true; render();
+      $("note").textContent = "카드를 집으면 반투명 사본이 따라붙고 놓을 칸이 점선으로 바뀜. 놓기 전에는 서버를 부르지 않음";
+    },
+    "moved": () => {
+      STATES["all"]();
+      moveTo(DATA.find(t => t.id === 2), "DOING"); render();
+      $("note").textContent = "놓는 순간 한 번만 호출. 실패하면 카드가 원래 칸으로 돌아감. 진행 이동은 활동 기록 없음";
+    },
+    "pick": () => {
+      STATES["all"]();
+      hl = {2: "orange"}; render();
+      openPicker(2);
+      $("note").textContent = "좁은 화면은 칸이 세로로 쌓여 끌 수 없음. 카드를 누르면 대기 · 진행 · 완료 버튼";
+    },
+    "assign": () => {
+      STATES["all"]();
+      menuId = 3; render();
+      $("note").textContent = "담당자 배지를 누르면 멤버 목록. 미정도 한 값";
+    },
+    "filter": () => {
+      STATES["all"]();
+      DATA = ALL.filter(t => t.who === "박과장").map(serve); render();
+      $("fWho").selectedIndex = 2;
+      $("note").textContent = "담당자 필터는 화면에서 거름. 서버 호출을 다시 하지 않음";
+    },
+    "late": () => {
+      STATES["all"]();
+      hl = {4: "red", 5: "blue"}; render();
+      $("note").textContent = "기한 지남은 화면이 판정. 「어제 · 지난 주 · 지난 달」 셋만 붉은 띠 - 「어제」 Neon 연결 정보 정리. 「지난 주」 배포 키 환경변수 이전은 완료라 제외";
+    },
+    "unassigned": () => {
+      STATES["all"]();
+      hl = {3: "blue"}; render();
+      $("note").textContent = "담당 미정 - 회의에서 정해지지 않은 것. 지어내지 않음";
+    },
+    "done": () => {
+      STATES["all"]();
+      hlCol = "DONE"; render();
+      $("note").textContent = "완료도 지우지 않고 남김. 활동 기록의 근거";
+    },
+    "del": () => {
+      STATES["all"]();
+      me = "이주임"; role = "member"; DATA = ALL.map(serve); hl = {1: "red"}; render();
+      $("note").textContent = "보는 사람 이주임(member). can_delete 가 true 인 카드(만든 사람 · 담당자)만 삭제 켜짐. 목록 화면 및 검색 구현은 꺼짐 - 부르면 403 FORBIDDEN";
+    },
+    "create": () => {
+      STATES["all"]();
+      $("newModal").classList.remove("hidden");
+      $("nWhat").value = "회의실 예약 규칙 정리"; $("nWho").value = "이주임"; $("nWhen").value = "이번 주 안";
+      $("note").textContent = "회의록 없이 칸반에서 바로 등록. 등록하면 POST /api/teams/{id}/todos -> 201, 카드 출처 「직접 등록」";
+    },
+    "empty": () => {
+      reset();
+      mine = true; DATA = []; render();
+      $("emptyTitle").textContent = "배정된 할 일이 없음";
+      $("emptySub").textContent = "전체 탭에서 팀 할 일을 보거나 새 할 일로 직접 등록";
+      $("note").textContent = "200 + 빈 배열";
+    }
+  };
+
+  $("tabMine").onclick = () => STATES["mine"]();
+  $("tabAll").onclick  = () => STATES["all"]();
+  $("newBtn").onclick  = () => { $("nWhat").value = ""; $("nWho").value = "미정"; $("nWhen").value = ""; $("newModal").classList.remove("hidden"); };
+  $("nSave").onclick = () => {
+    const what = $("nWhat").value.trim();
+    if (!what) return;
+    const id = Math.max(...ALL.map(t => t.id), ...DATA.map(t => t.id)) + 1;
+    DATA.push(serve({id, what, who:$("nWho").value, when:$("nWhen").value.trim() || "미정", status:"OPEN", from:"직접 등록", by:me, late:false}));
+    closeModals(); hl = {}; hl[id] = "green"; render();
+    window.toast("green", "할 일 등록 - 출처 「직접 등록」", "POST /api/teams/{id}/todos 201");
+  };
+
+  window.stateBar([
+    {key:"mine",       label:"내 할 일"},
+    {key:"all",        label:"전체"},
+    {key:"drag",       label:"끌어 옮기는 중"},
+    {key:"moved",      label:"이동 완료"},
+    {key:"pick",       label:"눌러서 칸 고르기"},
+    {key:"assign",     label:"담당자 배정"},
+    {key:"filter",     label:"담당자 필터"},
+    {key:"late",       label:"기한 지남"},
+    {key:"unassigned", label:"담당자 미정"},
+    {key:"done",       label:"완료만"},
+    {key:"del",        label:"할 일 삭제"},
+    {key:"empty",      label:"빈 상태"},
+    {key:"create",     label:"직접 등록"}
+  ], (key) => { me = "김대리"; role = "owner"; STATES[key](); });
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# 비밀 키
+.env
+.env.local
+
+# 로컬 DB · 파이썬 산출물
+meetingnote.db
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+
+# Claude Code 로컬 상태
+.claude/settings.local.json
+.claude/todo-guard/
+
+# 설계문서 · 샘플 녹취 (로컬에만 둠)
+docs/
+회의_녹음.wav

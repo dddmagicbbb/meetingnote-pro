@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetingNote Pro - 회의록 상세</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
+</head>
+
+<body class="bg-page dark:bg-canvas text-ink dark:text-fg font-sans antialiased min-h-screen flex flex-col">
+
+<header class="sticky top-0 z-30 bg-white dark:bg-canvas border-b border-line dark:border-edge">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+    <a href="meetings.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-ink dark:bg-fg grid place-items-center text-white dark:text-canvas font-extrabold text-sm">M</div>
+      <span class="font-extrabold tracking-tight">MeetingNote Pro</span>
+    </a>
+    <nav class="flex items-center gap-1 text-[13px] font-bold ml-2 min-w-0 overflow-x-auto">
+      <a href="meetings.html" class="px-2.5 py-1 rounded-lg bg-page dark:bg-chip">회의록</a>
+      <a href="todos.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">할 일</a>
+      <a href="team.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">팀</a>
+      <a href="profile.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">내 정보</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-2" id="themeSlot"></div>
+  </div>
+</header>
+
+<main class="flex-1 w-full max-w-6xl mx-auto px-4 py-5 space-y-4">
+
+  <!-- 머리 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <div class="flex flex-wrap items-start gap-3">
+      <div class="flex-1 min-w-[240px]">
+        <input id="title" value="2차 스프린트 계획 회의"
+          class="w-full text-lg font-extrabold bg-transparent border-0 p-0 focus:outline-none focus:ring-0" readonly>
+        <p class="mt-1 text-[12px] text-ink-3 dark:text-dim">
+          <span id="at">2026-09-24 14:00</span>  ·  <span id="who">김대리, 박과장, 이주임</span>
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button id="editBtn" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">수정</button>
+        <button id="delBtn" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold text-red-text dark:text-red-dot hover:border-red-dot transition">삭제</button>
+      </div>
+    </div>
+    <!-- 퍼블리싱 확인용. 어느 API 가 이 상태를 만드는지 적는 줄이라 실제 구현에는 넣지 않는다 -->
+    <p id="headNote" class="mt-3 text-[11px] text-ink-3 dark:text-dim"></p>
+  </section>
+
+  <!-- 세 항목 -->
+  <div class="grid gap-3 lg:grid-cols-3">
+    <!-- 요약 -->
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-blue-dot p-5">
+      <div class="flex items-baseline gap-2 mb-2.5">
+        <h2 class="text-sm font-extrabold text-blue-text dark:text-blue-dot">요약</h2>
+        <span class="text-[11px] text-ink-3 dark:text-dim">3~5줄</span>
+      </div>
+      <p id="summary" class="text-[13px] leading-relaxed text-ink-2 dark:text-dim whitespace-pre-line">회의록 정리기 2차 스프린트 계획을 다루었다.
+목록 화면 검색 범위를 제목과 참석자로 확정했다.
+회의록 공유 범위는 팀원 전체로 정하고 외부 공유는 뺐다.
+받아쓰기 유료 전환은 다음 회의로 미루었다.</p>
+    </section>
+
+    <!-- 결정사항 -->
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-green-dot p-5">
+      <div class="flex items-baseline gap-2 mb-2.5">
+        <h2 class="text-sm font-extrabold text-green-text dark:text-green-dot">결정사항</h2>
+        <span class="text-[11px] text-ink-3 dark:text-dim">합의가 끝난 것만</span>
+      </div>
+      <ul id="decisions" class="space-y-2 text-[13px] leading-relaxed">
+        <li class="flex gap-2"><span class="text-green-text dark:text-green-dot font-bold shrink-0">1</span><span>목록 검색은 제목과 참석자 범위로 한정</span></li>
+        <li class="flex gap-2"><span class="text-green-text dark:text-green-dot font-bold shrink-0">2</span><span>회의록 공유 범위는 팀원 전체 (외부 공유 제외)</span></li>
+      </ul>
+    </section>
+
+    <!-- 할 일 -->
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-orange-dot p-5">
+      <div class="flex items-baseline gap-2 mb-2.5">
+        <h2 class="text-sm font-extrabold text-orange-text dark:text-orange-dot">할 일</h2>
+        <span class="text-[11px] text-ink-3 dark:text-dim">담당자 · 기한</span>
+      </div>
+      <ul id="todos" class="space-y-2.5"></ul>
+    </section>
+  </div>
+
+  <!-- 본문 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <button id="bodyToggle" class="flex items-center gap-2 text-sm font-extrabold">
+      <span>받아쓴 본문</span>
+      <span class="text-[11px] font-bold text-ink-3 dark:text-dim" id="bodyState">펼치기</span>
+    </button>
+    <pre id="body" class="hidden mt-3 text-[12px] leading-relaxed text-ink-2 dark:text-dim whitespace-pre-wrap font-sans">김대리: 목록 화면 검색 범위를 제목과 참석자로 하겠습니다.
+박과장: 좋습니다. 회의록은 팀원 전체가 보고, 외부 공유는 이번에 빼죠.
+이주임: 받아쓰기 유료 전환은 다음에 다시 보겠습니다.
+김대리: 목록과 검색은 제가 다음 주 금요일까지 하겠습니다.
+이주임: 받아쓰기 오류 처리는 제가 이번 주 안에 하겠습니다.</pre>
+    <!-- 퍼블리싱 확인용 - 단건 조회에만 body 가 실림. 목록 응답에는 없음. 화면에는 넣지 않는다 -->
+  </section>
+
+  <!-- 댓글 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-purple-dot p-5">
+    <div class="flex items-baseline gap-2 mb-3">
+      <h2 class="text-sm font-extrabold text-purple-text dark:text-purple-dot">댓글</h2>
+      <span id="cCount" class="text-[11px] text-ink-3 dark:text-dim"></span>
+    </div>
+    <ul id="comments" class="space-y-2.5 mb-3"></ul>
+    <div id="cEmpty" class="hidden mb-3 text-[12px] text-ink-3 dark:text-dim">아직 댓글이 없음  -  결정에 의견이 있으면 여기에</div>
+    <div class="flex gap-2.5">
+      <div class="relative flex-1">
+        <input id="cInput" placeholder="이 회의에 대한 의견 (500자 이내)" maxlength="500"
+          class="w-full h-11 pl-3.5 pr-20 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm
+                 placeholder:text-ink-3 dark:placeholder:text-dim focus:outline-none focus:border-purple-dot transition">
+        <span id="cCount2" class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-3 dark:text-dim">0 / 500</span>
+      </div>
+      <button id="cBtn" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">등록</button>
+    </div>
+    <p id="cNote" class="mt-2.5 text-[11px] text-ink-3 dark:text-dim"></p>
+  </section>
+</main>
+
+<!-- 팝업 4종 - 뒤 화면을 흐리게 덮는다 (D-02 수정 · D-08 삭제 · D-12 댓글 삭제 · D-13 없는 회의록) -->
+<!-- 회의록 수정 - 제목 · 시각 · 참석자 · 본문 (PUT /api/meetings/{id}). 작성자 및 owner -->
+<div id="editModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-lg rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5 shadow-xl">
+    <div class="flex items-center mb-3">
+      <h2 class="text-sm font-extrabold flex-1">회의록 수정 - 작성자 및 owner</h2>
+      <button data-close class="w-7 h-7 grid place-items-center rounded-lg text-ink-3 hover:bg-page dark:hover:bg-chip" aria-label="닫기">x</button>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="block">
+        <span class="block text-xs font-bold mb-1.5">제목</span>
+        <input id="eTitle" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </label>
+      <label class="block">
+        <span class="block text-xs font-bold mb-1.5">회의 시각</span>
+        <input id="eAt" type="datetime-local" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </label>
+      <label class="block sm:col-span-2">
+        <span class="block text-xs font-bold mb-1.5">참석자</span>
+        <input id="eWho" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </label>
+    </div>
+    <label class="block mt-3">
+      <span class="block text-xs font-bold mb-1.5">본문</span>
+      <textarea id="eBody" rows="5" class="w-full px-3.5 py-2.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-[13px] leading-relaxed focus:outline-none focus:border-blue-dot transition"></textarea>
+    </label>
+    <div class="mt-3 flex gap-2.5 justify-end">
+      <button data-close type="button" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">취소</button>
+      <button id="eSave" type="button" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">저장</button>
+    </div>
+  </section>
+</div>
+
+<!-- 회의록 삭제 확인 -->
+<div id="delModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl">
+    <h2 class="text-sm font-extrabold text-red-text dark:text-red-dot">회의록을 삭제할까요?</h2>
+    <p class="text-[12px] text-ink-2 dark:text-dim mt-2">「2차 스프린트 계획 회의」와 딸린 할 일 3건도 함께 삭제됨. 되돌릴 수 없음</p>
+    <div class="mt-4 flex gap-2.5 justify-end">
+      <button data-close class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold transition">취소</button>
+      <button class="h-11 px-4 rounded-xl bg-red-dot text-white text-sm font-bold hover:opacity-90 transition">삭제</button>
+    </div>
+  </section>
+</div>
+
+<!-- 댓글 삭제 확인 - 쓴 사람과 owner 만 -->
+<div id="cDelModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl">
+    <h2 class="text-sm font-extrabold text-red-text dark:text-red-dot">댓글을 삭제할까요?</h2>
+    <p id="cDelText" class="text-[12px] text-ink-2 dark:text-dim mt-2">박과장의 댓글. 쓴 사람과 owner 만 삭제 가능</p>
+    <div class="mt-4 flex gap-2.5 justify-end">
+      <button data-close class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold transition">취소</button>
+      <button id="cDelYes" class="h-11 px-4 rounded-xl bg-red-dot text-white text-sm font-bold hover:opacity-90 transition">삭제</button>
+    </div>
+  </section>
+</div>
+
+<!-- 없는 회의록 - 404 -->
+<div id="nfModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl">
+    <h2 class="text-sm font-extrabold text-red-text dark:text-red-dot">회의록을 찾을 수 없음</h2>
+    <p class="text-[12px] text-ink-2 dark:text-dim mt-2">삭제됐거나 다른 팀의 회의록. 목록으로 이동</p>
+    <p class="text-[11px] font-mono text-red-text dark:text-red-dot mt-1">404 MEETING_NOT_FOUND</p>
+    <div class="mt-4 flex justify-end">
+      <a href="meetings.html" class="h-11 px-4 grid place-items-center rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">목록으로</a>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.getElementById("themeSlot").innerHTML = window.THEME_BTN;
+  window.initTheme(() => renderTodos());
+
+  const $ = (id) => document.getElementById(id);
+  const MEMBERS = ["미정", "김대리", "박과장", "이주임", "최선임"];
+  let TODOS = [], menu = null;   // menu = {i, kind: "who" | "status"} - 열린 드롭다운
+
+  const STATUS = {
+    OPEN:  {label:"대기", color:"orange"},
+    DOING: {label:"진행", color:"blue"},
+    DONE:  {label:"완료", color:"green"}
+  };
+
+  // 담당자 · 상태는 배지를 눌러 드롭다운 목록에서 고른다 (PUT /api/todos/{id})
+  //   삭제 버튼은 서버가 내려주는 can_delete 로 켠다 - 만든 사람 · 담당자 · owner 만 true
+  const dropdown = (i, kind, items, sel) => `
+    <div class="${window.UI.menu}">
+      ${items.map(([v, label]) => `<button type="button" data-pick="${kind}" data-i="${i}" data-v="${v}"
+        class="${v === sel ? window.UI.menuOn : window.UI.menuItem}">${label}</button>`).join("")}
+    </div>`;
+  const todoRow = (t, i) => {
+    const st = STATUS[t.status];
+    const openWho = menu && menu.i === i && menu.kind === "who";
+    const openSt = menu && menu.i === i && menu.kind === "status";
+    return `
+    <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge p-3">
+      <p class="text-[13px] font-bold leading-snug">${t.what}</p>
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        <span class="relative">
+          <button type="button" data-open="who" data-i="${i}"
+            class="px-2.5 py-1 rounded-md bg-white dark:bg-surface border text-[11px] font-extrabold transition
+                   ${openWho ? "border-orange-dot ring-2 ring-orange-dot/40" : "border-line dark:border-edge"} ${t.who === "미정" ? "text-ink-3 dark:text-dim" : ""}">${t.who}  v</button>
+          ${openWho ? dropdown(i, "who", MEMBERS.map(m => [m, m]), "박과장") : ""}
+        </span>
+        <input data-i="${i}" value="${t.when}" aria-label="기한"
+          class="due w-28 px-2 py-1 rounded-md bg-white dark:bg-surface border border-line dark:border-edge text-[11px] font-bold text-ink-2 dark:text-dim focus:outline-none focus:border-blue-dot transition">
+        <span class="relative ml-auto">
+          <button type="button" data-open="status" data-i="${i}"
+            class="px-2 py-1 rounded-md bg-white dark:bg-surface border text-[11px] font-extrabold ${window.LABEL[st.color]} transition
+                   ${openSt ? "border-orange-dot ring-2 ring-orange-dot/40" : "border-line dark:border-edge"}">${st.label}  v</button>
+          ${openSt ? dropdown(i, "status", Object.keys(STATUS).map(k => [k, STATUS[k].label + " " + k]), "DOING") : ""}
+        </span>
+        <button type="button" data-i="${i}" ${t.can_delete ? "" : "disabled"}
+          class="tdel px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-surface transition ${t.can_delete ? "text-red-text dark:text-red-dot hover:ring-1 hover:ring-red-dot" : "text-ink-3 dark:text-dim opacity-40 cursor-not-allowed"}">삭제</button>
+      </div>
+    </li>`;
+  };
+
+  function renderTodos(){
+    $("todos").innerHTML = TODOS.map(todoRow).join("");
+    document.querySelectorAll("[data-open]").forEach(function(b){
+      b.onclick = function(){
+        const i = +b.dataset.i, kind = b.dataset.open;
+        menu = (menu && menu.i === i && menu.kind === kind) ? null : {i, kind};
+        renderTodos();
+      };
+    });
+    document.querySelectorAll("[data-pick]").forEach(function(b){
+      b.onclick = function(){
+        const t = TODOS[+b.dataset.i];
+        if (!t) return;
+        if (b.dataset.pick === "who") {
+          t.who = b.dataset.v;
+          $("headNote").textContent = "할 일 고치는 중" + t.id + "  {assignee_id} -> 200   담당자 " + t.who + "   활동 기록 todo_assign";
+        } else {
+          t.status = b.dataset.v;
+          $("headNote").textContent = "할 일 고치는 중" + t.id + "  {status: \"" + t.status + "\"} -> 200" + (t.status === "DONE" ? "   활동 기록 todo_done" : "   활동 기록 없음");
+        }
+        menu = null; renderTodos();
+      };
+    });
+    document.querySelectorAll("input.due").forEach(function(inp){
+      inp.onchange = function(){
+        const t = TODOS[+inp.dataset.i];
+        if (!t) return;
+        t.when = inp.value.trim() || "미정";
+        $("headNote").textContent = "할 일 고치는 중" + t.id + "  {due_text} -> 200   기한 " + t.when;
+        renderTodos();
+      };
+    });
+    document.querySelectorAll("button.tdel").forEach(function(b){
+      b.onclick = function(){
+        const t = TODOS[+b.dataset.i];
+        if (!t || !t.can_delete) return;
+        TODOS.splice(+b.dataset.i, 1);
+        $("headNote").textContent = "할 일 지우는 중" + t.id + "  -> 204   만든 사람 · 담당자 · owner 만";
+        renderTodos();
+      };
+    });
+  }
+
+  const COMMENTS = [
+    {id:1, who:"박과장", text:"외부 공유를 뺐으니 공유 링크 버튼은 이번에 넣지 않습니다.", when:"오늘 15:02"},
+    {id:2, who:"이주임", text:"받아쓰기 실패했을 때 화면 표시는 어떻게 할까요?", when:"오늘 15:10"}
+  ];
+  let CM = [], cDelId = null;
+  function renderComments(){
+    $("comments").innerHTML = CM.map(function(c){ return `
+      <li class="rounded-xl border px-3.5 py-2.5 ${c.hl ? "bg-green-dot/10 border-green-dot" : "bg-page dark:bg-chip border-line dark:border-edge"}">
+        <p class="text-[13px]"><span class="font-bold">${c.who}</span>  ${c.text}</p>
+        <p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">${c.when}
+          <button type="button" data-del-c="${c.id}" class="ml-2 text-red-text dark:text-red-dot font-bold">삭제</button></p>
+      </li>`; }).join("");
+    $("cCount").textContent = CM.length ? CM.length + "건" : "";
+    $("comments").classList.toggle("hidden", CM.length === 0);
+    document.querySelectorAll("[data-del-c]").forEach(function(b){
+      b.onclick = function(){ askDelComment(+b.dataset.delC); };
+    });
+    $("cEmpty").classList.toggle("hidden", CM.length > 0);
+  }
+  function askDelComment(id){
+    const c = CM.find(function(x){ return x.id === id; });
+    if (!c) return;
+    cDelId = id;
+    $("cDelText").textContent = c.who + "의 댓글. 쓴 사람과 owner 만 삭제 가능";
+    open("cDelModal");
+  }
+  const count = () => { $("cCount2").textContent = $("cInput").value.length + " / 500"; };
+  $("cInput").addEventListener("input", count);
+
+  const MODALS = ["editModal", "delModal", "cDelModal", "nfModal"];
+  const open = (id) => $(id).classList.remove("hidden");
+  const closeAll = () => MODALS.forEach(m => $(m).classList.add("hidden"));
+  document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeAll);
+
+  // 지금 보는 사람은 owner(김대리)라 세 건 모두 can_delete = true
+  const BASE = [
+    {id:1, what:"목록 화면 및 검색 구현", who:"김대리", when:"다음 주 금요일", status:"DOING", can_delete:true},
+    {id:2, what:"받아쓰기 오류 처리", who:"이주임", when:"이번 주 안", status:"OPEN", can_delete:true},
+    {id:3, what:"사용자 다섯 분 인터뷰", who:"미정", when:"미정", status:"OPEN", can_delete:true}
+  ];
+  const DECISIONS = $("decisions").innerHTML;
+
+  // 스토리보드 D-01 ~ D-13
+  const STATES = {
+    "view": () => {
+      closeAll(); menu = null;
+      document.querySelectorAll("main > *").forEach(el => el.classList.remove("invisible"));
+      $("decisions").innerHTML = DECISIONS;
+      TODOS = JSON.parse(JSON.stringify(BASE)); renderTodos();
+      CM = COMMENTS.slice(); renderComments();
+      $("body").classList.add("hidden"); $("bodyState").textContent = "펼치기";
+      $("cInput").value = ""; count(); $("cBtn").disabled = false; $("cBtn").textContent = "등록";
+      $("cNote").textContent = "";
+      $("headNote").textContent = "단건에는 body 포함. 본문은 접힘";
+    },
+    "edit": () => {
+      STATES["view"]();
+      open("editModal");
+      $("eTitle").value = "2차 스프린트 계획 회의 (확정)";
+      $("eAt").value = "2026-09-24T14:00";
+      $("eWho").value = $("who").textContent;
+      $("eBody").value = $("body").textContent;
+      $("headNote").textContent = "저장하면 PUT /api/meetings/{id} -> 200";
+    },
+    "assign": () => {
+      STATES["view"]();
+      menu = {i: 2, kind: "who"}; renderTodos();
+      $("headNote").textContent = "미정 배지를 눌러 멤버 목록에서 선택. 후보는 GET /api/teams/{id}/members";
+    },
+    "progress": () => {
+      STATES["view"]();
+      menu = {i: 1, kind: "status"}; renderTodos();
+      $("headNote").textContent = "상태는 OPEN > DOING > DONE 세 가지만. 되돌림 허용";
+    },
+    "no-decision": () => {
+      STATES["view"]();
+      $("decisions").innerHTML = `<li class="rounded-xl border border-dashed border-line dark:border-edge px-3 py-6 text-center"><p class="text-[13px] font-bold">결정사항 없음</p><p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">억지로 채우지 않음</p></li>`;
+      $("headNote").textContent = "논의만 하고 정하지 않았으면 비움";
+    },
+    "no-todo": () => {
+      STATES["view"]();
+      TODOS = []; renderTodos();
+      $("todos").innerHTML = `<li class="rounded-xl border border-dashed border-line dark:border-edge px-3 py-6 text-center"><p class="text-[13px] font-bold">할 일 없음</p><p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">담당자와 기한이 드러난 항목 0건</p></li>`;
+      $("headNote").textContent = "할 일이 없으면 빈 칸";
+    },
+    "body-open": () => {
+      STATES["view"]();
+      $("body").classList.remove("hidden"); $("bodyState").textContent = "접기";
+      $("headNote").textContent = "펼치면 받아쓴 본문 전체. 기본은 접힘 - 세 항목을 먼저 읽게 하는 배치";
+    },
+    "delete": () => {
+      STATES["view"]();
+      open("delModal");
+      $("headNote").textContent = "삭제하면 DELETE /api/meetings/{id} -> 204";
+    },
+    "comment": () => {
+      STATES["view"]();
+      $("cInput").value = "기한은 금요일로 확정했으면 함"; count(); $("cInput").focus();
+      $("cNote").textContent = "등록을 누르면 POST /api/meetings/{id}/comments";
+    },
+    "comment-added": () => {
+      STATES["view"]();
+      CM = COMMENTS.concat([{id:3, who:"김대리", text:"기한은 금요일로 확정했으면 함", when:"방금", hl:true}]);
+      renderComments();
+      $("cNote").textContent = "활동 기록에도 기록";
+      window.toast("green", "댓글 등록 - 입력칸 비움", "201");
+    },
+    "comment-del": () => {
+      STATES["view"]();
+      askDelComment(1);
+      $("cNote").textContent = "삭제하면 DELETE /api/comments/{id} -> 204";
+    },
+    "comment-none": () => {
+      STATES["view"]();
+      CM = []; renderComments(); $("cInput").focus();
+      $("cNote").textContent = "200 + 빈 배열 - 첫 댓글 입력 대기";
+    },
+    "not-found": () => {
+      STATES["view"]();
+      document.querySelectorAll("main > *").forEach(el => el.classList.add("invisible"));
+      open("nfModal");
+    }
+  };
+
+  $("bodyToggle").onclick = () => {
+    const hid = $("body").classList.toggle("hidden");
+    $("bodyState").textContent = hid ? "펼치기" : "접기";
+  };
+  $("delBtn").onclick = () => STATES["delete"]();
+  $("editBtn").onclick = () => STATES["edit"]();
+  $("eSave").onclick = () => {
+    $("title").value = $("eTitle").value;
+    $("at").textContent = $("eAt").value.replace("T", " ");
+    $("who").textContent = $("eWho").value;
+    $("body").textContent = $("eBody").value;
+    closeAll();
+    $("headNote").textContent = "회의록 고치는 중  PUT /api/meetings/{id} -> 200   활동 기록 없음";
+  };
+  $("cDelYes").onclick = () => {
+    const k = CM.findIndex(function(x){ return x.id === cDelId; });
+    if (k >= 0) CM.splice(k, 1);
+    closeAll(); renderComments();
+    $("cNote").textContent = "댓글 지우는 중" + cDelId + "  -> 204   쓴 사람과 owner 만";
+  };
+  $("cBtn").onclick = () => STATES["comment-added"]();
+
+  window.stateBar([
+    {key:"view",        label:"보기"},
+    {key:"edit",        label:"수정"},
+    {key:"assign",      label:"담당자 배정"},
+    {key:"progress",    label:"상태 변경"},
+    {key:"no-decision", label:"결정사항 없음"},
+    {key:"no-todo",     label:"할 일 없음"},
+    {key:"body-open",   label:"본문 펼침"},
+    {key:"delete",      label:"삭제 확인"},
+    {key:"comment",       label:"댓글 입력"},
+    {key:"comment-added", label:"댓글 등록"},
+    {key:"comment-none",  label:"댓글 없음"},
+    {key:"comment-del",   label:"댓글 삭제"},
+    {key:"not-found",     label:"없는 회의록"}
+  ], (key) => STATES[key]());
+</script>
+</body>
+</html>
