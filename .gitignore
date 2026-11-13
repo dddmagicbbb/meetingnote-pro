@@ -14,5 +14,7 @@ __pycache__/
 .claude/todo-guard/
 
 # 설계문서 · 샘플 녹취 (로컬에만 둠)
-docs/
+docs/MeetingNote Pro_프로그램정의.pdf
+docs/MeetingNote Pro_스토리보드.pdf
+docs/MeetingNote Pro_디자인시스템.pdf
 회의_녹음.wav
