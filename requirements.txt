@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy>=2.0
+psycopg[binary]
+pyjwt
+bcrypt
+python-multipart
+python-dotenv
+google-genai
+pytest
+httpx

@@ -1,0 +1,40 @@
+import sys, os, random; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from e2e_common import *
+from playwright.sync_api import sync_playwright
+api,team,kim,park,lee=seed()
+r=random.randint(10000,99999)
+def su(n):
+    j=api.post("/auth/signup",json={"email":f"{n}{r}{random.randint(0,999)}@ex.com","password":"password1","name":n}).json()
+    return {"token":j["token"],"id":j["user"]["id"],"h":{"Authorization":"Bearer "+j["token"]}}
+with sync_playwright() as p:
+    b=p.chromium.launch(channel="chrome")
+    solo=su("최선임")
+    pg=page_as(b,solo,"/team.html")
+    ok("F-02 소속 팀 없음 온보딩", pg.is_visible("#onboard") and not pg.is_visible("#members"))
+    pg.fill("#joinCode","MN-0000"); pg.click("#joinBtn"); pg.wait_for_timeout(600)
+    ok("F-03 없는 코드 오류, 로그인 유지", pg.is_visible("#joinErr") and "없는 초대코드" in pg.inner_text("#joinErr") and pg.url.endswith("/team.html"))
+    # 정원 채우기: 현재 3명 → 3명 더
+    for i in range(3):
+        u=su(f"m{i}"); api.post("/teams/join",json={"invite_code":team["invite_code"]},headers=u["h"])
+    pg.fill("#joinCode",team["invite_code"]); pg.click("#joinBtn"); pg.wait_for_timeout(600)
+    ok("F-06 정원 초과 팝업", pg.is_visible("#fullModal") and "6명" in pg.inner_text("#fullModal"))
+    pg.click("#fullOk")
+    pg.fill("#newName","새팀"); pg.click("#createBtn"); pg.wait_for_timeout(800)
+    ok("팀 만들기 → 팀 화면", pg.is_visible("#members") and "새팀" in pg.input_value("#tName"))
+    po=page_as(b,kim,"/team.html")
+    po.context.grant_permissions(["clipboard-read","clipboard-write"], origin=U)
+    ok("F-01 멤버 6명 표시", po.locator("#members > *").count()==6)
+    ok("F-01 활동기록 합류 표시", "합류" in po.inner_text("#acts"))
+    ok("활동 띠 purple(member_join)", "border-l-purple-dot" in po.inner_html("#acts"))
+    po.click("#copyBtn"); po.wait_for_timeout(300)
+    ok("F-04 코드 복사 토스트", "초대코드를 복사함" in po.inner_text("#toastBox"))
+    old=po.inner_text("#code"); po.click("#newCodeBtn"); po.wait_for_timeout(800)
+    ok("F-05 재발급 새 코드", po.inner_text("#code")!=old and po.inner_text("#code").startswith("MN-"))
+    po.fill("#tName","기획1팀"); po.click("#saveName"); po.wait_for_timeout(600)
+    ok("F-07 팀 이름 저장", api.get("/teams",headers=kim["h"]).json()[0]["name"]=="기획1팀" and "기획1팀" in po.inner_text("#viewer"))
+    pm=page_as(b,park,"/team.html")
+    ok("F-08 member 잠금(저장·재발급 비활성, 복사 가능)", pm.is_disabled("#saveName") and pm.is_disabled("#newCodeBtn") and not pm.is_disabled("#copyBtn"))
+    pn=page_as(b,kim,"/team.html",width=360); ok("360px 가로 스크롤 없음", no_hscroll(pn))
+    ok("JS 오류 없음", not (pg.errs or po.errs or pm.errs or pn.errs))
+    b.close()
+print(f"{sum(res)}/{len(res)}"); sys.exit(0 if all(res) else 1)

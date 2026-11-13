@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetingNote Pro - 내 정보</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
+<script src="api.js"></script>
+</head>
+
+<body class="bg-page dark:bg-canvas text-ink dark:text-fg font-sans antialiased min-h-screen flex flex-col">
+
+<header class="sticky top-0 z-30 bg-white dark:bg-canvas border-b border-line dark:border-edge">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+    <a href="meetings.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-ink dark:bg-fg grid place-items-center text-white dark:text-canvas font-extrabold text-sm">M</div>
+      <span class="font-extrabold tracking-tight">MeetingNote Pro</span>
+    </a>
+    <nav class="flex items-center gap-1 text-[13px] font-bold ml-2 min-w-0 overflow-x-auto">
+      <a href="meetings.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">회의록</a>
+      <a href="todos.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">할 일</a>
+      <a href="team.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">팀</a>
+      <span class="px-2.5 py-1 rounded-lg bg-page dark:bg-chip" aria-current="page">내 정보</span>
+    </nav>
+    <div class="ml-auto flex items-center gap-2 shrink-0">
+      <span class="hidden sm:inline text-[12px] text-ink-3 dark:text-dim" id="teamName"></span>
+      <div id="themeSlot"></div>
+    </div>
+  </div>
+</header>
+
+<main class="flex-1 w-full max-w-6xl mx-auto px-4 py-5 grid gap-4 lg:grid-cols-[1fr_1.3fr]">
+
+  <!-- 왼쪽: 계정 -->
+  <div class="space-y-4">
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <div id="avatar" class="w-12 h-12 rounded-2xl bg-page dark:bg-chip border border-line dark:border-edge grid place-items-center text-lg font-extrabold"></div>
+        <div>
+          <p class="text-[15px] font-extrabold" id="who"></p>
+          <p class="text-[12px] text-ink-3 dark:text-dim" id="whoEmail"></p>
+        </div>
+        <span id="ownerBadge" class="hidden ml-auto px-2.5 py-1 rounded-md text-[11px] font-extrabold text-purple-text dark:text-purple-dot bg-page dark:bg-chip">owner</span>
+      </div>
+
+      <label for="email" class="block text-xs font-bold mb-1.5">이메일 <span class="font-normal text-ink-3 dark:text-dim">(변경 불가)</span></label>
+      <input id="email" value="" disabled
+        class="w-full h-11 px-3.5 rounded-xl bg-line dark:bg-edge border border-line dark:border-edge text-sm font-mono text-ink-3 dark:text-dim mb-3.5">
+
+      <label for="name" class="block text-xs font-bold mb-1.5">이름</label>
+      <input id="name" value=""
+        class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot focus:ring-2 focus:ring-blue-dot/25 transition">
+      <p id="errName" class="hidden mt-1.5 text-[11px] font-semibold text-red-text dark:text-red-dot"></p>
+
+      <div class="mt-3.5 grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="pw1" class="block text-xs font-bold mb-1.5">새 비밀번호</label>
+          <input id="pw1" type="password" placeholder="8자 이상" autocomplete="new-password"
+            class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+          <p id="errPw1" class="hidden mt-1.5 text-[11px] font-semibold text-red-text dark:text-red-dot"></p>
+        </div>
+        <div>
+          <label for="pw2" class="block text-xs font-bold mb-1.5">한 번 더</label>
+          <input id="pw2" type="password" placeholder="다시 입력" autocomplete="new-password"
+            class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+          <p id="errPw2" class="hidden mt-1.5 text-[11px] font-semibold text-red-text dark:text-red-dot"></p>
+        </div>
+      </div>
+      <p class="mt-1.5 text-[11px] text-ink-3 dark:text-dim">비밀번호 두 칸을 비워 두면 비밀번호는 그대로</p>
+
+      <div class="mt-4 flex gap-2.5">
+        <button id="saveBtn" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">저장</button>
+        <button id="logoutBtn" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-sm font-bold hover:border-ink dark:hover:border-dim transition">로그아웃</button>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+      <div class="flex items-baseline gap-2 mb-3">
+        <h2 class="text-sm font-extrabold">내 할 일</h2>
+        <span id="tCount" class="text-[11px] text-ink-3 dark:text-dim"></span>
+        <a href="todos.html" class="ml-auto text-[11px] font-bold text-blue-text dark:text-blue-dot hover:underline">보드로</a>
+      </div>
+      <ul id="todos" class="space-y-2"></ul>
+      <div id="tEmpty" class="hidden rounded-xl border border-dashed border-line dark:border-edge px-4 py-6 text-center">
+        <p class="text-sm font-bold">배정된 할 일 없음</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- 오른쪽: 내 활동 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <div class="flex items-baseline gap-2 mb-3">
+      <h2 class="text-sm font-extrabold">내 활동</h2>
+      <span class="text-[11px] text-ink-3 dark:text-dim">최근 순</span>
+      <span id="aCount" class="ml-auto text-[11px] text-ink-3 dark:text-dim"></span>
+    </div>
+    <ol id="acts" class="space-y-2.5"></ol>
+    <div id="aEmpty" class="hidden px-4 py-10 text-center">
+      <p class="text-sm font-bold">활동 기록 없음</p>
+      <p class="text-[12px] text-ink-2 dark:text-dim mt-1">회의록을 올리거나 할 일을 처리하면 여기에 쌓임</p>
+    </div>
+  </section>
+</main>
+
+<script>
+  document.getElementById("themeSlot").innerHTML = window.THEME_BTN;
+  window.initTheme(() => render());
+
+  const $ = (id) => document.getElementById(id);
+  const nameIn = $("name"), pw1 = $("pw1"), pw2 = $("pw2"), saveBtn = $("saveBtn");
+
+  let me = null, team = null;
+  let todos = [], acts = [];
+  let loaded = false;
+
+  // 헤더 · 계정 칸 - 이름이 바뀌면 다시 그림 (J-06)
+  function showUser() {
+    $("who").textContent = me.name;
+    $("whoEmail").textContent = me.email;
+    $("avatar").textContent = (me.name || "").trim().charAt(0);
+    $("email").value = me.email;
+    $("ownerBadge").classList.toggle("hidden", me.role !== "owner");
+    $("teamName").textContent = team ? `${me.name} · ${team.name}` : me.name;
+  }
+
+  function todoRow(t) {
+    const late = window.PAL.isLate(t);
+    const color = late ? "red" : window.PAL.STATUS_COLOR[t.status];
+    const dueCls = late ? window.LABEL.red : "text-ink-2 dark:text-dim";
+    const due = t.due_text
+      ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-surface ${dueCls}">${esc(t.due_text)}</span>`
+      : "";
+    return `
+      <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge ${window.STRIPE[color]} px-3.5 py-2.5">
+        <p class="text-[13px] font-bold">${esc(t.what)}</p>
+        <div class="mt-1 flex gap-1.5">
+          ${due}
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${window.LABEL[window.PAL.STATUS_COLOR[t.status]]} bg-white dark:bg-surface">${esc(window.PAL.STATUS_LABEL[t.status] || t.status)}</span>
+        </div>
+      </li>`;
+  }
+
+  function actRow(a) {
+    const color = window.PAL.KIND_COLOR[a.kind] || "blue";
+    return `
+      <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge ${window.STRIPE[color]} px-3.5 py-2.5">
+        <p class="text-[13px]">${esc(a.text)}</p>
+        <p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">${esc(FMT.relative(a.created_at))}  ·  <span class="font-mono">${esc(a.kind)}</span></p>
+      </li>`;
+  }
+
+  function render() {
+    if (!loaded) return;
+    $("todos").innerHTML = todos.map(todoRow).join("");
+    $("tCount").textContent = todos.length ? todos.length + "건" : "";
+    $("todos").classList.toggle("hidden", todos.length === 0);
+    $("tEmpty").classList.toggle("hidden", todos.length > 0);
+    // 활동 0건 - 팀 생성은 활동 kind 5종에 없음 (J-07)
+    $("acts").innerHTML = acts.map(actRow).join("");
+    $("aCount").textContent = acts.length ? acts.length + "건" : "";
+    $("acts").classList.toggle("hidden", acts.length === 0);
+    $("aEmpty").classList.toggle("hidden", acts.length > 0);
+  }
+
+  // ── 저장 (J-02 ~ J-06) ──────────────────────────────────
+  const clearErr = () => {
+    ["errName","errPw1","errPw2"].forEach(i => $(i).classList.add("hidden"));
+    [nameIn, pw1, pw2].forEach(el => el.classList.remove("border-red-dot"));
+  };
+  const errOn = (id, input, t) => { $(id).textContent = t; $(id).classList.remove("hidden"); input.classList.add("border-red-dot"); };
+  const lock = () => { saveBtn.disabled = true; saveBtn.textContent = "저장 중..."; };
+  const unlock = () => { saveBtn.disabled = false; saveBtn.textContent = "저장"; };
+
+  async function save() {
+    if (saveBtn.disabled || !me) return;
+    clearErr();
+    window.toast(null);
+
+    const name = nameIn.value.trim();
+    const p1 = pw1.value, p2 = pw2.value;
+    const wantPw = p1 !== "" || p2 !== "";
+    let bad = false;
+
+    if (!name) { errOn("errName", nameIn, "이름을 입력"); bad = true; }
+    else if (name.length > 50) { errOn("errName", nameIn, "이름은 50자 이하"); bad = true; }
+    if (wantPw) {
+      // 화면에서 먼저 거르고 서버로 보내지 않음 (J-03 · J-04)
+      if (p1.length < 8) { errOn("errPw1", pw1, "비밀번호는 8자 이상"); bad = true; }
+      if (p1 !== p2) { errOn("errPw2", pw2, "두 비밀번호가 다름 - 서버로 보내지 않음"); bad = true; }
+    }
+    if (bad) return;
+
+    // 바뀐 것만 보냄 - 이름만이면 {name}, 비밀번호만이면 {password}
+    const body = {};
+    if (name !== me.name) body.name = name;
+    if (wantPw) body.password = p1;
+    if (!Object.keys(body).length) { nameIn.value = me.name; return; }
+
+    lock();
+    try {
+      const user = await API.put("/auth/me", body);
+      me = { ...me, ...user };
+      nameIn.value = me.name;
+      pw1.value = ""; pw2.value = "";
+      showUser();
+      unlock();
+      window.toast("green", wantPw ? "저장함 - 비밀번호 칸 비움" : "저장함", "");
+    } catch (e) {
+      unlock();
+      if (e.code === "PASSWORD_TOO_WEAK") errOn("errPw1", pw1, "비밀번호는 8자 이상");
+      else if (e.status === 400 && body.name !== undefined && !wantPw) errOn("errName", nameIn, e.msg);
+      else window.toast("red", "저장 실패", esc(e.msg));
+    }
+  }
+
+  saveBtn.onclick = save;
+  [nameIn, pw1, pw2].forEach(el => el.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); }));
+  $("logoutBtn").onclick = () => { $("logoutBtn").disabled = true; API.logout(); };
+
+  // ── 첫 화면 (J-01) ──────────────────────────────────────
+  (async () => {
+    let ctx;
+    try { ctx = await API.boot({ needTeam: false }); }
+    catch (e) { window.toast("red", "내 정보를 불러오지 못함", esc(e.msg)); return; }
+    me = ctx.user; team = ctx.team;
+    nameIn.value = me.name;
+    showUser();
+
+    const [t, a] = await Promise.all([
+      API.get("/me/todos").catch((e) => { window.toast("red", "내 할 일을 불러오지 못함", esc(e.msg)); return []; }),
+      API.get("/me/activities").catch((e) => { window.toast("red", "내 활동을 불러오지 못함", esc(e.msg)); return []; })
+    ]);
+    todos = t || []; acts = a || [];
+    loaded = true;
+    render();
+  })();
+</script>
+</body>
+</html>

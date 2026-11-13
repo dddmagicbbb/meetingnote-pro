@@ -25,24 +25,26 @@
 
 ```
 meetingnote-pro/
-  .env  .env.example  .gitignore  requirements.txt
+  .env  .env.example  .gitignore  requirements.txt  requirements-dev.txt (+ playwright)
   backend/
     main.py          FastAPI 앱 · /api 라우터 · StaticFiles(frontend) · /docs
     config.py        루트 .env 읽기 (GEMINI_API_KEY · GEMINI_MODEL), JWT_SECRET · DATABASE_URL 기본값
     db.py            엔진 · 세션. DATABASE_URL 있으면 Postgres, 없으면 sqlite:///meetingnote.db
     models.py        7테이블
-    schemas.py       요청 · 응답 모양
+    security.py      bcrypt 해시 · JWT 발급과 검증
     errors.py        ApiError(code, status, msg) + 예외 처리기
     deps.py          현재 사용자 · 소속 팀 · owner 확인
     gemini.py        받아쓰기 · 세 갈래 구분 (여기만 외부 호출)
-    routers/         auth · teams · meetings · todos · comments · activities
-    tests/           pytest
+    routers/         auth · teams · meetings · todos · comments · activities (요청 모양은 각 라우터 안 pydantic 모델)
+    tests/           pytest (서버)
+    tests/e2e/       브라우저 확인 스크립트 (실제 서버 + Chrome, run_all.py)
   frontend/
     login.html meetings.html detail.html todos.html team.html profile.html
     theme.js         publish/theme.js 그대로 복사
     api.js           fetch 래퍼 · 토큰 · 401 처리 · 소속 팀 확인
 ```
 
+- 요청 모양은 `schemas.py` 한 곳 대신 쓰는 라우터 안에 둔다 - 라우터마다 2~4개뿐이라 옆에 있는 편이 읽기 쉽다
 - 대안: `backend/app/...` 패키지 깊이를 더 두는 구조 → 화면 6 · 라우터 6 규모에서 얻는 게 없어 평평하게 둔다
 - `.env` 는 루트에 둔다(정의서 7-5). `config.py` 는 `Path(__file__).parent.parent / ".env"` 를 읽어 실행 위치와 상관없이 찾는다
 
@@ -94,7 +96,8 @@ meetingnote-pro/
 
 - pytest + FastAPI `TestClient`, DB 는 테스트마다 임시 SQLite
 - `gemini.py` 의 두 함수를 `monkeypatch` 로 바꿔 받아쓰기 · 구분 · 5xx · 파싱 실패를 흉내 낸다. 실제 Gemini 는 부르지 않는다
-- 시나리오(specs 의 `#### Scenario`) 중 서버 쪽 것을 테스트로 옮긴다. 화면 쪽은 맨 아래 사람 수락 항목에서 눈으로 본다
+- 시나리오(specs 의 `#### Scenario`) 중 서버 쪽 것을 테스트로 옮긴다
+- 화면 쪽 시나리오는 `backend/tests/e2e/` 의 playwright 스크립트로 확인한다. 실제 서버와 Gemini 를 쓰므로 pytest 기본 실행에는 넣지 않는다 (`python backend/tests/e2e/run_all.py`). 마지막 눈 확인은 맨 아래 사람 수락 항목
 
 ## Risks / Trade-offs
 

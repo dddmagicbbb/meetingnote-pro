@@ -1,0 +1,37 @@
+import os, random, httpx, sys
+from playwright.sync_api import sync_playwright
+U=os.environ.get("E2E_URL","http://127.0.0.1:8000"); r=random.randint(10000,99999)
+api=httpx.Client(base_url=U+"/api")
+owner=api.post("/auth/signup",json={"email":f"own{r}@ex.com","password":"password1","name":"김대리"}).json()
+team=api.post("/teams",json={"name":"기획팀"},headers={"Authorization":"Bearer "+owner["token"]}).json()
+res=[]
+def ok(label,cond): res.append(cond); print(("OK " if cond else "XX ")+label)
+with sync_playwright() as p:
+    b=p.chromium.launch(channel="chrome"); pg=b.new_page(); calls=[]
+    pg.on("request", lambda q: calls.append(q.url) if "/api/" in q.url else None)
+    pg.goto(U+"/login.html")
+    pg.fill("#email",f"own{r}@ex.com"); pg.fill("#pw","wrongpass"); pg.click("#submit")
+    pg.wait_for_selector("#boxErr:not(.hidden)"); ok("B-02 login fail msg", "올바르지 않음" in pg.inner_text("#boxErrText"))
+    pg.click("#toggle"); ok("B-05 signup mode", pg.is_visible("#nameWrap") and pg.inner_text("#submit")=="가입하기")
+    pg.fill("#email","hong@exam"); ok("B-06 no error while typing", not pg.is_visible("#errEmail"))
+    n=len(calls); pg.fill("#email","hong@example"); pg.fill("#pw","password1"); pg.fill("#uname","홍길동"); pg.click("#submit")
+    ok("B-08 format error, no server call", pg.is_visible("#errEmail") and len(calls)==n)
+    pg.fill("#email",f"hong{r}@example.com"); pg.fill("#pw","12345"); pg.click("#submit")
+    ok("B-10 weak pw on screen", pg.is_visible("#errPw") and len(calls)==n)
+    pg.fill("#email",f"own{r}@ex.com"); pg.fill("#pw","password1"); pg.click("#submit")
+    pg.wait_for_selector("#errEmail:not(.hidden)"); ok("B-09 duplicate", "이미 가입된" in pg.inner_text("#errEmail"))
+    pg.fill("#email",f"hong{r}@example.com"); pg.fill("#invite","MN-0000"); pg.click("#submit")
+    pg.wait_for_url("**/team.html", timeout=8000); ok("B-11 bad invite -> team.html", pg.url.endswith("/team.html"))
+    # 새 브라우저 컨텍스트로 초대코드 가입 → meetings
+    c2=b.new_context(); p2=c2.new_page(); p2.goto(U+"/login.html#signup")
+    p2.fill("#email",f"park{r}@example.com"); p2.fill("#pw","password1"); p2.fill("#uname","박과장"); p2.fill("#invite",team["invite_code"])
+    p2.click("#submit"); p2.wait_for_url("**/meetings.html", timeout=8000); ok("B-05 signup+join -> meetings", True)
+    # 로그인 성공 → meetings (B-04)
+    c3=b.new_context(); p3=c3.new_page(); p3.goto(U+"/login.html"); p3.fill("#email",f"own{r}@ex.com"); p3.fill("#pw","password1"); p3.click("#submit")
+    p3.wait_for_url("**/meetings.html", timeout=8000); ok("B-04 login -> meetings", True)
+    # 만료 토큰 → 로그인 화면 + 토스트 (B-03)
+    c4=b.new_context(); p4=c4.new_page(); p4.goto(U+"/login.html"); p4.evaluate("localStorage.setItem('mnp_token','bad.token.x')")
+    p4.goto(U+"/meetings.html"); p4.wait_for_url("**/login.html", timeout=8000)
+    p4.wait_for_selector("#toastBox"); ok("B-03 expired -> login + toast", "다시 로그인" in p4.inner_text("#toastBox"))
+    b.close()
+print(f"{sum(res)}/{len(res)} passed"); sys.exit(0 if all(res) else 1)

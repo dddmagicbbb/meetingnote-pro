@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetingNote Pro - 팀 설정</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
+<script src="api.js"></script>
+</head>
+
+<body class="bg-page dark:bg-canvas text-ink dark:text-fg font-sans antialiased min-h-screen flex flex-col">
+
+<header class="sticky top-0 z-30 bg-white dark:bg-canvas border-b border-line dark:border-edge">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+    <a href="meetings.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-ink dark:bg-fg grid place-items-center text-white dark:text-canvas font-extrabold text-sm">M</div>
+      <span class="font-extrabold tracking-tight">MeetingNote Pro</span>
+    </a>
+    <nav class="flex items-center gap-1 text-[13px] font-bold ml-2 min-w-0 overflow-x-auto">
+      <a href="meetings.html" data-needteam class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">회의록</a>
+      <a href="todos.html" data-needteam class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">할 일</a>
+      <span class="px-2.5 py-1 rounded-lg bg-page dark:bg-chip" aria-current="page">팀</span>
+      <a href="profile.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">내 정보</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-2">
+      <span id="viewer" class="hidden sm:inline text-[12px] text-ink-3 dark:text-dim"></span>
+      <div id="themeSlot"></div>
+    </div>
+  </div>
+</header>
+
+<main class="flex-1 w-full max-w-6xl mx-auto px-4 py-5 space-y-4">
+
+  <!-- 팀 만들기 / 합류 (소속 팀이 없을 때). 회의록 · 할 일 화면에 들어갈 수 없음 (F-02) -->
+  <section id="onboard" class="hidden">
+    <p class="text-[12px] text-ink-3 dark:text-dim mb-3">소속 팀이 없어 회의록 · 할 일 화면에 들어갈 수 없음. 팀을 만들거나 초대코드로 합류</p>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+        <p class="text-[15px] font-extrabold">팀 만들기</p>
+        <p class="text-[12px] text-ink-3 dark:text-dim mt-0.5 mb-3">만든 사람이 owner</p>
+        <label for="newName" class="block text-xs font-bold mb-1.5">팀 이름</label>
+        <input id="newName" maxlength="50" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition" placeholder="예: 기획팀">
+        <div class="mt-3 flex justify-end">
+          <button id="createBtn" class="h-11 px-5 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">만들기</button>
+        </div>
+      </div>
+      <div class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+        <p class="text-[15px] font-extrabold">초대코드로 합류</p>
+        <p class="text-[12px] text-ink-3 dark:text-dim mt-0.5 mb-3">owner 에게 받은 코드 입력</p>
+        <label for="joinCode" class="block text-xs font-bold mb-1.5">초대코드</label>
+        <input id="joinCode" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm font-mono tracking-widest focus:outline-none focus:border-blue-dot transition" placeholder="MN-7K2D">
+        <p id="joinErr" class="hidden mt-1.5 text-[11px] font-semibold text-red-text dark:text-red-dot"></p>
+        <div class="mt-3 flex justify-end">
+          <button id="joinBtn" class="h-11 px-5 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">합류</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 팀 정보 (F-01 · F-04 · F-05 · F-07 · F-08) -->
+  <section id="info" class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <div class="flex flex-wrap items-start gap-4">
+      <div class="flex-1 min-w-[200px]">
+        <p id="nameLabel" class="text-[11px] font-bold text-ink-3 dark:text-dim mb-1">팀 이름</p>
+        <div class="flex gap-2">
+          <input id="tName" value="" maxlength="50" aria-labelledby="nameLabel"
+            class="flex-1 min-w-0 h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm font-bold focus:outline-none focus:border-blue-dot transition">
+          <button id="saveName" type="button" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">저장</button>
+        </div>
+      </div>
+      <div>
+        <p class="text-[11px] font-bold text-ink-3 dark:text-dim mb-1">초대코드  <span class="font-normal">팀당 코드 하나 · 정원 6명</span></p>
+        <div class="flex gap-2">
+          <div class="h-11 px-4 grid place-items-center rounded-xl bg-page dark:bg-chip border border-line dark:border-edge
+                      font-mono text-sm font-extrabold tracking-[0.2em]" id="code"></div>
+          <button id="copyBtn" class="h-11 px-3.5 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">복사</button>
+          <button id="newCodeBtn" class="h-11 px-3.5 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">재발급</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 멤버 -->
+  <section id="memSec" class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <div class="flex items-baseline gap-2 mb-3">
+      <h2 class="text-sm font-extrabold">멤버 <span id="mCap" class="text-ink-3 dark:text-dim font-bold"></span></h2>
+      <span class="ml-auto text-[11px] text-ink-3 dark:text-dim">팀당 6명 이내</span>
+    </div>
+    <ul id="members" class="grid gap-2 sm:grid-cols-2"></ul>
+  </section>
+
+  <!-- 활동 기록 -->
+  <section id="actSec" class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <div class="flex items-baseline gap-2 mb-3">
+      <h2 class="text-sm font-extrabold">활동 기록</h2>
+      <span class="text-[11px] text-ink-3 dark:text-dim">최근 순</span>
+    </div>
+    <ol id="acts" class="space-y-2.5"></ol>
+  </section>
+</main>
+
+<!-- 정원 초과 팝업 - 409 TEAM_FULL (F-06) -->
+<div id="fullModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="fullTitle">
+    <h2 id="fullTitle" class="text-sm font-extrabold text-red-text dark:text-red-dot">팀 정원이 찼음</h2>
+    <p id="fullMsg" class="text-[12px] text-ink-2 dark:text-dim mt-2"></p>
+    <p class="text-[11px] font-mono text-red-text dark:text-red-dot mt-1">409 TEAM_FULL</p>
+    <div class="mt-4 flex justify-end">
+      <button id="fullOk" class="h-11 px-5 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">확인</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.getElementById("themeSlot").innerHTML = window.THEME_BTN;
+  window.initTheme();
+
+  const $ = (id) => document.getElementById(id);
+  const LOCK = ["opacity-40", "pointer-events-none"];
+  const TEAM_LIMIT = 6;
+
+  let user = null;   // GET /auth/me
+  let team = null;   // GET /teams[0] - 없으면 null
+
+  const fail = (e) => window.toast("red", e && e.msg ? e.msg : "요청 실패", e && e.code ? `${e.status} ${e.code}` : "");
+
+  // ── 상단 바 ──────────────────────────────────────────────
+  function setViewer() {
+    const name = user ? user.name : "";
+    $("viewer").textContent = team ? `${name} · ${team.name}` : `${name} · 소속 팀 없음`;
+  }
+
+  // 소속 팀 없음이면 회의록 · 할 일로 가는 링크를 흐리게 하고 막음 (F-02)
+  document.querySelectorAll("[data-needteam]").forEach(a => a.addEventListener("click", (e) => {
+    if (team) return;
+    e.preventDefault();
+    window.toast("orange", "소속 팀 없음", "팀을 만들거나 초대코드로 합류한 뒤 들어갈 수 있음");
+  }));
+
+  const noTeam = (on) => {
+    $("onboard").classList.toggle("hidden", !on);
+    ["info", "memSec", "actSec"].forEach(i => $(i).classList.toggle("hidden", on));
+    document.querySelectorAll("[data-needteam]").forEach(a => {
+      a.classList.toggle("opacity-30", on);
+      if (on) a.setAttribute("aria-disabled", "true"); else a.removeAttribute("aria-disabled");
+    });
+    setViewer();
+  };
+
+  // ── 팀 정보 · 권한 (F-01 · F-08) ──────────────────────────
+  function renderInfo() {
+    const owner = team.role === "owner";
+    $("tName").value = team.name;
+    $("tName").readOnly = !owner;
+    $("tName").classList.toggle("opacity-60", !owner);
+    $("nameLabel").textContent = owner ? "팀 이름" : "팀 이름 (owner 만 수정)";
+    [$("newCodeBtn"), $("saveName")].forEach(b => {
+      b.disabled = !owner;
+      LOCK.forEach(c => b.classList.toggle(c, !owner));
+    });
+    $("code").textContent = team.invite_code;
+  }
+
+  function renderMembers(list) {
+    $("members").innerHTML = list.map(m => `
+      <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge p-3 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-white dark:bg-surface border border-line dark:border-edge grid place-items-center text-[13px] font-extrabold">${esc(Array.from(m.name || "?")[0])}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-bold">${esc(m.name)}</p>
+          <p class="text-[11px] text-ink-3 dark:text-dim truncate">${esc(m.email)}</p>
+        </div>
+        <div class="text-right shrink-0">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${m.role === "owner" ? window.LABEL.purple : window.LABEL.blue} bg-white dark:bg-surface">${esc(m.role)}</span>
+          <p class="mt-1 text-[10px] text-ink-3 dark:text-dim">할 일 ${Number(m.todo_count) || 0}</p>
+        </div>
+      </li>`).join("");
+    $("mCap").textContent = `${list.length} / ${TEAM_LIMIT}`;
+  }
+
+  // text 는 「actor_name 나머지」 완성 문장 - 앞의 이름을 떼어 굵게 따로 그림
+  function splitActor(a) {
+    const who = a.actor_name || "";
+    const text = a.text || "";
+    if (who && text.startsWith(who + " ")) return [who, text.slice(who.length + 1)];
+    return [who, text.startsWith(who) ? text.slice(who.length).trim() : text];
+  }
+
+  function renderActs(list) {
+    if (!list.length) {
+      $("acts").innerHTML = `<li class="text-[12px] text-ink-3 dark:text-dim">아직 활동 기록 없음</li>`;
+      return;
+    }
+    $("acts").innerHTML = list.map(a => {
+      const [who, what] = splitActor(a);
+      const stripe = window.STRIPE[window.PAL.KIND_COLOR[a.kind]] || "";
+      return `
+      <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge ${stripe} px-3.5 py-2.5">
+        <p class="text-[13px]"><span class="font-bold">${esc(who)}</span>  ·  ${esc(what)}</p>
+        <p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">${esc(FMT.relative(a.created_at))}</p>
+      </li>`;
+    }).join("");
+  }
+
+  async function loadTeamData() {
+    try {
+      const [members, acts] = await Promise.all([
+        API.get(`/teams/${team.id}/members`),
+        API.get(`/teams/${team.id}/activities`)
+      ]);
+      renderMembers(members || []);
+      renderActs(acts || []);
+    } catch (e) { fail(e); }
+  }
+
+  function showTeam() {
+    noTeam(false);
+    $("fullModal").classList.add("hidden");
+    $("code").classList.remove("ring-2", "ring-green-dot", "text-green-text");
+    renderInfo();
+    loadTeamData();
+  }
+
+  function showOnboard() {
+    noTeam(true);
+    clearJoinErr();
+    $("newName").focus();
+  }
+
+  // ── 팀 만들기 (F-02) ──────────────────────────────────────
+  $("createBtn").onclick = async () => {
+    const name = $("newName").value.trim();
+    $("newName").classList.remove("border-red-dot");
+    if (!name) { $("newName").classList.add("border-red-dot"); $("newName").focus(); window.toast("red", "팀 이름을 입력", ""); return; }
+    $("createBtn").disabled = true;
+    try {
+      team = await API.post("/teams", { name });
+      window.toast("green", `팀 생성 - ${team.name}`, `초대코드 ${team.invite_code} 를 팀원에게 전달`);
+      showTeam();
+    } catch (e) {
+      if (e.code === "VALIDATION_ERROR") $("newName").classList.add("border-red-dot");
+      fail(e);
+    } finally { $("createBtn").disabled = false; }
+  };
+
+  // ── 초대코드로 합류 (F-02 · F-03 · F-06) ──────────────────
+  function clearJoinErr() {
+    $("joinCode").classList.remove("border-red-dot");
+    $("joinErr").classList.add("hidden");
+  }
+  function joinErr(msg) {
+    $("joinCode").classList.add("border-red-dot");
+    $("joinErr").textContent = msg;
+    $("joinErr").classList.remove("hidden");
+    $("joinCode").focus();
+  }
+
+  $("joinBtn").onclick = async () => {
+    clearJoinErr();
+    const code = $("joinCode").value.trim().toUpperCase();
+    if (!code) { joinErr("초대코드를 입력"); return; }
+    $("joinBtn").disabled = true;
+    try {
+      await API.post("/teams/join", { invite_code: code });
+      window.toast("green", "팀에 합류함 - 회의록으로 이동", "");
+      location.replace("/meetings.html");
+    } catch (e) {
+      $("joinBtn").disabled = false;
+      if (e.code === "INVITE_NOT_FOUND") joinErr("없는 초대코드 - 계정은 그대로 유지");
+      else if (e.code === "TEAM_FULL") {
+        $("fullMsg").textContent = (e.msg || "팀은 이미 6명. owner 에게 문의").replace(" 은 이미", "은 이미");
+        $("fullModal").classList.remove("hidden");
+        $("fullOk").focus();
+      }
+      else if (e.code === "VALIDATION_ERROR") joinErr(e.msg);
+      else fail(e);
+    }
+  };
+  $("joinCode").addEventListener("input", clearJoinErr);
+
+  $("fullOk").onclick = () => $("fullModal").classList.add("hidden");
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") $("fullModal").classList.add("hidden");
+  });
+
+  // ── 초대코드 복사 (F-04) - owner · member 모두 ────────────
+  $("copyBtn").onclick = async () => {
+    const code = team && team.invite_code;
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      window.toast("green", `초대코드를 복사함 - ${code}`, "받는 사람은 회원가입 뒤 초대코드로 합류");
+    } catch {
+      window.toast("red", "복사하지 못함", `코드를 직접 전달 - ${code}`);
+    }
+  };
+
+  // ── 초대코드 재발급 (F-05) - owner 만 ─────────────────────
+  $("newCodeBtn").onclick = async () => {
+    if (!team || team.role !== "owner") return;
+    const old = team.invite_code;
+    $("newCodeBtn").disabled = true;
+    try {
+      team = await API.put(`/teams/${team.id}/code`);
+      renderInfo();
+      $("code").classList.add("ring-2", "ring-green-dot", "text-green-text");
+      window.toast("green", `새 초대코드 발급 - ${old} 폐기`, "이미 합류한 멤버는 그대로");
+    } catch (e) { fail(e); }
+    finally { $("newCodeBtn").disabled = !team || team.role !== "owner"; }
+  };
+
+  // ── 팀 이름 저장 (F-07) - owner 만 ────────────────────────
+  $("saveName").onclick = async () => {
+    if (!team || team.role !== "owner") return;
+    const name = $("tName").value.trim();
+    $("tName").classList.remove("border-red-dot");
+    if (!name) { $("tName").classList.add("border-red-dot"); $("tName").focus(); window.toast("red", "팀 이름은 1~50자", ""); return; }
+    $("saveName").disabled = true;
+    try {
+      team = await API.put(`/teams/${team.id}`, { name });
+      renderInfo();
+      setViewer();
+      window.toast("green", "팀 이름 저장", "");
+    } catch (e) {
+      if (e.code === "VALIDATION_ERROR") $("tName").classList.add("border-red-dot");
+      fail(e);
+    } finally { $("saveName").disabled = !team || team.role !== "owner"; }
+  };
+
+  // Enter 로 제출
+  [["newName", "createBtn"], ["joinCode", "joinBtn"], ["tName", "saveName"]].forEach(([i, b]) =>
+    $(i).addEventListener("keydown", (e) => { if (e.key === "Enter" && !$(b).disabled) $(b).click(); }));
+
+  // ── 시작 - 팀이 없어도 이 화면은 열림 ─────────────────────
+  (async () => {
+    try {
+      const res = await API.boot({ needTeam: false });
+      user = res.user; team = res.team;
+      if (team) showTeam(); else showOnboard();
+    } catch (e) { fail(e); }
+  })();
+</script>
+</body>
+</html>

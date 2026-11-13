@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetingNote Pro - 회의록 상세</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
+<script src="api.js"></script>
+</head>
+
+<body class="bg-page dark:bg-canvas text-ink dark:text-fg font-sans antialiased min-h-screen flex flex-col">
+
+<header class="sticky top-0 z-30 bg-white dark:bg-canvas border-b border-line dark:border-edge">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+    <a href="meetings.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-ink dark:bg-fg grid place-items-center text-white dark:text-canvas font-extrabold text-sm">M</div>
+      <span class="font-extrabold tracking-tight">MeetingNote Pro</span>
+    </a>
+    <nav class="flex items-center gap-1 text-[13px] font-bold ml-2 min-w-0 overflow-x-auto">
+      <a href="meetings.html" class="px-2.5 py-1 rounded-lg bg-page dark:bg-chip">회의록</a>
+      <a href="todos.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">할 일</a>
+      <a href="team.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">팀</a>
+      <a href="profile.html" class="px-2.5 py-1 rounded-lg text-ink-2 dark:text-dim hover:bg-page dark:hover:bg-chip transition">내 정보</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-2" id="themeSlot"></div>
+  </div>
+</header>
+
+<main id="main" class="flex-1 w-full max-w-6xl mx-auto px-4 py-5 space-y-4">
+
+  <!-- 머리 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <div class="flex flex-wrap items-start gap-3">
+      <div class="flex-1 min-w-[240px]">
+        <input id="title" value=""
+          class="w-full text-lg font-extrabold bg-transparent border-0 p-0 focus:outline-none focus:ring-0" readonly>
+        <p class="mt-1 text-[12px] text-ink-3 dark:text-dim">
+          <span id="at"></span>  ·  <span id="who"></span>
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button id="editBtn" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">수정</button>
+        <button id="delBtn" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold text-red-text dark:text-red-dot hover:border-red-dot transition">삭제</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 세 항목 -->
+  <div class="grid gap-3 lg:grid-cols-3">
+    <!-- 요약 -->
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-blue-dot p-5">
+      <div class="flex items-baseline gap-2 mb-2.5">
+        <h2 class="text-sm font-extrabold text-blue-text dark:text-blue-dot">요약</h2>
+        <span class="text-[11px] text-ink-3 dark:text-dim">3~5줄</span>
+      </div>
+      <p id="summary" class="text-[13px] leading-relaxed text-ink-2 dark:text-dim whitespace-pre-line"></p>
+    </section>
+
+    <!-- 결정사항 -->
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-green-dot p-5">
+      <div class="flex items-baseline gap-2 mb-2.5">
+        <h2 class="text-sm font-extrabold text-green-text dark:text-green-dot">결정사항</h2>
+        <span class="text-[11px] text-ink-3 dark:text-dim">합의가 끝난 것만</span>
+      </div>
+      <ul id="decisions" class="space-y-2 text-[13px] leading-relaxed"></ul>
+    </section>
+
+    <!-- 할 일 -->
+    <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-orange-dot p-5">
+      <div class="flex items-baseline gap-2 mb-2.5">
+        <h2 class="text-sm font-extrabold text-orange-text dark:text-orange-dot">할 일</h2>
+        <span class="text-[11px] text-ink-3 dark:text-dim">담당자 · 기한</span>
+      </div>
+      <ul id="todos" class="space-y-2.5"></ul>
+    </section>
+  </div>
+
+  <!-- 본문 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5">
+    <button id="bodyToggle" class="flex items-center gap-2 text-sm font-extrabold">
+      <span>받아쓴 본문</span>
+      <span class="text-[11px] font-bold text-ink-3 dark:text-dim" id="bodyState">펼치기</span>
+    </button>
+    <pre id="body" class="hidden mt-3 text-[12px] leading-relaxed text-ink-2 dark:text-dim whitespace-pre-wrap font-sans"></pre>
+  </section>
+
+  <!-- 댓글 -->
+  <section class="rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge border-l-[6px] border-l-purple-dot p-5">
+    <div class="flex items-baseline gap-2 mb-3">
+      <h2 class="text-sm font-extrabold text-purple-text dark:text-purple-dot">댓글</h2>
+      <span id="cCount" class="text-[11px] text-ink-3 dark:text-dim"></span>
+    </div>
+    <ul id="comments" class="space-y-2.5 mb-3"></ul>
+    <div id="cEmpty" class="hidden mb-3 text-[12px] text-ink-3 dark:text-dim">아직 댓글이 없음  -  결정에 의견이 있으면 여기에</div>
+    <div class="flex gap-2.5">
+      <div class="relative flex-1">
+        <input id="cInput" placeholder="이 회의에 대한 의견 (500자 이내)" maxlength="500"
+          class="w-full h-11 pl-3.5 pr-20 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm
+                 placeholder:text-ink-3 dark:placeholder:text-dim focus:outline-none focus:border-purple-dot transition">
+        <span id="cCount2" class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-3 dark:text-dim">0 / 500</span>
+      </div>
+      <button id="cBtn" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">등록</button>
+    </div>
+  </section>
+</main>
+
+<!-- 팝업 4종 - 뒤 화면을 흐리게 덮는다 (D-02 수정 · D-08 삭제 · D-12 댓글 삭제 · D-13 없는 회의록) -->
+<!-- 회의록 수정 - 제목 · 시각 · 참석자 · 본문 (PUT /api/meetings/{id}). 작성자 및 owner -->
+<div id="editModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-lg rounded-2xl bg-white dark:bg-surface border border-line dark:border-edge p-5 shadow-xl">
+    <div class="flex items-center mb-3">
+      <h2 class="text-sm font-extrabold flex-1">회의록 수정 - 작성자 및 owner</h2>
+      <button data-close class="w-7 h-7 grid place-items-center rounded-lg text-ink-3 hover:bg-page dark:hover:bg-chip" aria-label="닫기">x</button>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="block">
+        <span class="block text-xs font-bold mb-1.5">제목</span>
+        <input id="eTitle" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </label>
+      <label class="block">
+        <span class="block text-xs font-bold mb-1.5">회의 시각</span>
+        <input id="eAt" type="datetime-local" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </label>
+      <label class="block sm:col-span-2">
+        <span class="block text-xs font-bold mb-1.5">참석자</span>
+        <input id="eWho" class="w-full h-11 px-3.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-sm focus:outline-none focus:border-blue-dot transition">
+      </label>
+    </div>
+    <label class="block mt-3">
+      <span class="block text-xs font-bold mb-1.5">본문</span>
+      <textarea id="eBody" rows="5" class="w-full px-3.5 py-2.5 rounded-xl bg-page dark:bg-chip border border-line dark:border-edge text-[13px] leading-relaxed focus:outline-none focus:border-blue-dot transition"></textarea>
+    </label>
+    <div class="mt-3 flex gap-2.5 justify-end">
+      <button data-close type="button" class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold hover:border-ink dark:hover:border-dim transition">취소</button>
+      <button id="eSave" type="button" class="h-11 px-4 rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">저장</button>
+    </div>
+  </section>
+</div>
+
+<!-- 회의록 삭제 확인 -->
+<div id="delModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl">
+    <h2 class="text-sm font-extrabold text-red-text dark:text-red-dot">회의록을 삭제할까요?</h2>
+    <p id="delText" class="text-[12px] text-ink-2 dark:text-dim mt-2"></p>
+    <div class="mt-4 flex gap-2.5 justify-end">
+      <button data-close class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold transition">취소</button>
+      <button id="delYes" class="h-11 px-4 rounded-xl bg-red-dot text-white text-sm font-bold hover:opacity-90 transition">삭제</button>
+    </div>
+  </section>
+</div>
+
+<!-- 댓글 삭제 확인 - 쓴 사람과 owner 만 -->
+<div id="cDelModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl">
+    <h2 class="text-sm font-extrabold text-red-text dark:text-red-dot">댓글을 삭제할까요?</h2>
+    <p id="cDelText" class="text-[12px] text-ink-2 dark:text-dim mt-2"></p>
+    <div class="mt-4 flex gap-2.5 justify-end">
+      <button data-close class="h-11 px-4 rounded-xl bg-white dark:bg-chip border border-line dark:border-edge text-[13px] font-bold transition">취소</button>
+      <button id="cDelYes" class="h-11 px-4 rounded-xl bg-red-dot text-white text-sm font-bold hover:opacity-90 transition">삭제</button>
+    </div>
+  </section>
+</div>
+
+<!-- 없는 회의록 - 404 -->
+<div id="nfModal" class="hidden fixed inset-0 z-40 bg-black/40 grid place-items-center p-4">
+  <section class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface border border-red-dot p-5 shadow-xl">
+    <h2 class="text-sm font-extrabold text-red-text dark:text-red-dot">회의록을 찾을 수 없음</h2>
+    <p class="text-[12px] text-ink-2 dark:text-dim mt-2">삭제됐거나 다른 팀의 회의록. 목록으로 이동</p>
+    <p class="text-[11px] font-mono text-red-text dark:text-red-dot mt-1">404 MEETING_NOT_FOUND</p>
+    <div class="mt-4 flex justify-end">
+      <a href="meetings.html" class="h-11 px-4 grid place-items-center rounded-xl bg-ink dark:bg-fg text-white dark:text-canvas text-sm font-bold hover:opacity-90 transition">목록으로</a>
+    </div>
+  </section>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  // 머리 오른쪽 - 「이름 · 팀」 + 테마 버튼 (team.html 머리와 같은 줄)
+  $("themeSlot").innerHTML =
+    `<span id="viewer" class="hidden sm:inline text-[12px] text-ink-3 dark:text-dim"></span>` + window.THEME_BTN;
+  window.initTheme(() => renderTodos());
+
+  const MEETING_ID = Number(new URLSearchParams(location.search).get("id"));
+  const STATUS_KEYS = ["OPEN", "DOING", "DONE"];
+  const OFF = "opacity-40 cursor-not-allowed";   // 권한 없는 버튼 (퍼블리싱 할 일 삭제 버튼과 같은 값)
+
+  let M = null;            // GET /meetings/{id}
+  let TODOS = [];          // M.todos
+  let MEMBERS = [];        // GET /teams/{id}/members
+  let CM = [];             // 댓글
+  let menu = null;         // 열린 드롭다운 {i, kind: "who" | "status"}
+  let cDelId = null;
+  let newCommentId = null; // 방금 등록한 댓글 - 초록 테두리
+  let toastTimer = null;
+
+  const fail = (e) => {
+    window.toast("red", "요청 실패", esc((e && e.msg) || "알 수 없는 오류"));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => window.toast(null), 5000);
+  };
+  const ok = (title) => {
+    window.toast("green", esc(title), "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => window.toast(null), 3000);
+  };
+
+  // ── 팝업 ─────────────────────────────────────────────
+  const MODALS = ["editModal", "delModal", "cDelModal", "nfModal"];
+  const openModal = (id) => $(id).classList.remove("hidden");
+  const closeAll = () => MODALS.forEach(m => { if (m !== "nfModal") $(m).classList.add("hidden"); });
+  document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeAll);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeAll(); if (menu) { menu = null; renderTodos(); } } });
+
+  // D-13 없는 회의록 - 화면을 가리고 팝업만
+  function notFound() {
+    document.querySelectorAll("main > *").forEach(el => el.classList.add("invisible"));
+    openModal("nfModal");
+  }
+
+  // ── 머리 · 요약 · 결정사항 · 본문 ─────────────────────────
+  function renderHead() {
+    $("title").value = M.title || "";
+    $("at").textContent = FMT.dateTime(M.met_at);
+    $("who").textContent = M.attendees || "";
+    $("summary").textContent = M.summary || "";
+    $("body").textContent = M.body || "";
+    [$("editBtn"), $("delBtn")].forEach(b => {
+      b.disabled = !M.can_edit;
+      OFF.split(" ").forEach(c => b.classList.toggle(c, !M.can_edit));
+    });
+    const dec = M.decisions || [];
+    $("decisions").innerHTML = dec.length
+      ? dec.map((d, i) => `<li class="flex gap-2"><span class="${window.LABEL.green} font-bold shrink-0">${i + 1}</span><span>${esc(d)}</span></li>`).join("")
+      : `<li class="rounded-xl border border-dashed border-line dark:border-edge px-3 py-6 text-center"><p class="text-[13px] font-bold">결정사항 없음</p><p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">억지로 채우지 않음</p></li>`;
+  }
+
+  $("bodyToggle").onclick = () => {
+    const hid = $("body").classList.toggle("hidden");
+    $("bodyState").textContent = hid ? "펼치기" : "접기";
+  };
+
+  // ── 할 일 - 담당자 · 상태는 배지를 눌러 드롭다운에서 고름 (PUT /todos/{id}) ──
+  const dropdown = (i, kind, items, sel) => `
+    <div class="${window.UI.menu}">
+      ${items.map(([v, label]) => `<button type="button" data-pick="${kind}" data-i="${i}" data-v="${esc(v)}"
+        class="${v === sel ? window.UI.menuOn : window.UI.menuItem}">${esc(label)}</button>`).join("")}
+    </div>`;
+
+  const todoRow = (t, i) => {
+    const color = PAL.STATUS_COLOR[t.status] || "orange";
+    const label = PAL.STATUS_LABEL[t.status] || t.status;
+    const who = t.assignee_name || "미정";
+    const openWho = menu && menu.i === i && menu.kind === "who";
+    const openSt = menu && menu.i === i && menu.kind === "status";
+    const whoItems = [["", "미정"]].concat(MEMBERS.map(m => [String(m.id), m.name]));
+    const stItems = STATUS_KEYS.map(k => [k, PAL.STATUS_LABEL[k] + " " + k]);
+    return `
+    <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge p-3">
+      <p class="text-[13px] font-bold leading-snug">${esc(t.what)}</p>
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        <span class="relative">
+          <button type="button" data-open="who" data-i="${i}"
+            class="px-2.5 py-1 rounded-md bg-white dark:bg-surface border text-[11px] font-extrabold transition
+                   ${openWho ? "border-orange-dot ring-2 ring-orange-dot/40" : "border-line dark:border-edge"} ${t.assignee_id ? "" : "text-ink-3 dark:text-dim"}">${esc(who)}  v</button>
+          ${openWho ? dropdown(i, "who", whoItems, t.assignee_id ? String(t.assignee_id) : "") : ""}
+        </span>
+        <input data-i="${i}" value="${esc(t.due_text || "")}" placeholder="미정" aria-label="기한" maxlength="100"
+          class="due w-28 px-2 py-1 rounded-md bg-white dark:bg-surface border border-line dark:border-edge text-[11px] font-bold text-ink-2 dark:text-dim focus:outline-none focus:border-blue-dot transition">
+        <span class="relative ml-auto">
+          <button type="button" data-open="status" data-i="${i}"
+            class="px-2 py-1 rounded-md bg-white dark:bg-surface border text-[11px] font-extrabold ${window.LABEL[color]} transition
+                   ${openSt ? "border-orange-dot ring-2 ring-orange-dot/40" : "border-line dark:border-edge"}">${esc(label)}  v</button>
+          ${openSt ? dropdown(i, "status", stItems, t.status) : ""}
+        </span>
+        <button type="button" data-i="${i}" ${t.can_delete ? "" : "disabled"}
+          class="tdel px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-surface transition ${t.can_delete ? "text-red-text dark:text-red-dot hover:ring-1 hover:ring-red-dot" : "text-ink-3 dark:text-dim opacity-40 cursor-not-allowed"}">삭제</button>
+      </div>
+    </li>`;
+  };
+
+  async function putTodo(t, body) {
+    try {
+      const nt = await API.put(`/todos/${t.id}`, body);
+      const k = TODOS.findIndex(x => x.id === t.id);
+      if (k >= 0) TODOS[k] = nt;
+    } catch (e) { fail(e); }
+    menu = null;
+    renderTodos();
+  }
+
+  function renderTodos() {
+    if (!M) return;
+    if (!TODOS.length) {
+      $("todos").innerHTML = `<li class="rounded-xl border border-dashed border-line dark:border-edge px-3 py-6 text-center"><p class="text-[13px] font-bold">할 일 없음</p><p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">담당자와 기한이 드러난 항목 0건</p></li>`;
+      return;
+    }
+    $("todos").innerHTML = TODOS.map(todoRow).join("");
+    document.querySelectorAll("[data-open]").forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        const i = +b.dataset.i, kind = b.dataset.open;
+        menu = (menu && menu.i === i && menu.kind === kind) ? null : { i, kind };
+        renderTodos();
+      };
+    });
+    document.querySelectorAll("[data-pick]").forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        const t = TODOS[+b.dataset.i];
+        if (!t) return;
+        if (b.dataset.pick === "who") {
+          const v = b.dataset.v ? Number(b.dataset.v) : null;
+          if (v === (t.assignee_id ?? null)) { menu = null; renderTodos(); return; }
+          putTodo(t, { assignee_id: v });           // null = 미정
+        } else {
+          if (b.dataset.v === t.status) { menu = null; renderTodos(); return; }
+          putTodo(t, { status: b.dataset.v });      // 되돌림 허용
+        }
+      };
+    });
+    document.querySelectorAll("input.due").forEach(inp => {
+      inp.onchange = () => {
+        const t = TODOS[+inp.dataset.i];
+        if (!t) return;
+        const v = inp.value.trim();
+        if (v === (t.due_text || "")) return;
+        putTodo(t, { due_text: v });
+      };
+      inp.onkeydown = (e) => { if (e.key === "Enter") inp.blur(); };
+    });
+    document.querySelectorAll("button.tdel").forEach(b => {
+      b.onclick = async () => {
+        const t = TODOS[+b.dataset.i];
+        if (!t || !t.can_delete) return;
+        b.disabled = true;
+        try {
+          await API.del(`/todos/${t.id}`);
+          TODOS = TODOS.filter(x => x.id !== t.id);
+          menu = null;
+          renderTodos();
+        } catch (e) { b.disabled = false; fail(e); }
+      };
+    });
+  }
+
+  // 드롭다운 밖을 누르면 닫음
+  document.addEventListener("click", (e) => {
+    if (menu && !e.target.closest("[data-pick], [data-open]")) { menu = null; renderTodos(); }
+  });
+
+  // ── 수정 (D-02) ──────────────────────────────────────
+  $("editBtn").onclick = () => {
+    if (!M || !M.can_edit) return;
+    $("eTitle").value = M.title || "";
+    $("eAt").value = FMT.isoToLocalInput(M.met_at);
+    $("eWho").value = M.attendees || "";
+    $("eBody").value = M.body || "";
+    openModal("editModal");
+    $("eTitle").focus();
+  };
+  $("eSave").onclick = async () => {
+    const body = {
+      title: $("eTitle").value.trim(),
+      attendees: $("eWho").value.trim(),
+      body: $("eBody").value,
+    };
+    const at = FMT.localInputToIso($("eAt").value);
+    if (at) body.met_at = at;
+    const btn = $("eSave");
+    btn.disabled = true; btn.textContent = "저장 중...";
+    try {
+      M = await API.put(`/meetings/${MEETING_ID}`, body);
+      TODOS = M.todos || [];
+      renderHead(); renderTodos();
+      closeAll();
+      ok("회의록 저장");
+    } catch (e) {
+      if (e.code === "MEETING_NOT_FOUND") { closeAll(); notFound(); }
+      else fail(e);
+    } finally {
+      btn.disabled = false; btn.textContent = "저장";
+    }
+  };
+
+  // ── 삭제 (D-08) ──────────────────────────────────────
+  $("delBtn").onclick = () => {
+    if (!M || !M.can_edit) return;
+    $("delText").textContent = `「${M.title}」와 딸린 할 일 ${TODOS.length}건도 함께 삭제됨. 되돌릴 수 없음`;
+    openModal("delModal");
+  };
+  $("delYes").onclick = async () => {
+    const btn = $("delYes");
+    btn.disabled = true;
+    try {
+      await API.del(`/meetings/${MEETING_ID}`);
+      location.href = "meetings.html";
+    } catch (e) {
+      btn.disabled = false;
+      if (e.code === "MEETING_NOT_FOUND") { closeAll(); notFound(); }
+      else fail(e);
+    }
+  };
+
+  // ── 댓글 (D-09 ~ D-12) ───────────────────────────────
+  function renderComments() {
+    $("comments").innerHTML = CM.map(c => `
+      <li class="rounded-xl border px-3.5 py-2.5 ${c.id === newCommentId ? "bg-green-dot/10 border-green-dot" : "bg-page dark:bg-chip border-line dark:border-edge"}">
+        <p class="text-[13px]"><span class="font-bold">${esc(c.user_name)}</span>  ${esc(c.content)}</p>
+        <p class="text-[11px] text-ink-3 dark:text-dim mt-0.5">${esc(FMT.relative(c.created_at))}
+          <button type="button" data-del-c="${c.id}" ${c.can_delete ? "" : "disabled"} class="ml-2 font-bold ${c.can_delete ? "text-red-text dark:text-red-dot" : "text-ink-3 dark:text-dim opacity-40 cursor-not-allowed"}">삭제</button></p>
+      </li>`).join("");
+    $("cCount").textContent = CM.length ? CM.length + "건" : "";
+    $("comments").classList.toggle("hidden", CM.length === 0);
+    $("cEmpty").classList.toggle("hidden", CM.length > 0);
+    document.querySelectorAll("[data-del-c]").forEach(b => {
+      b.onclick = () => askDelComment(+b.dataset.delC);
+    });
+  }
+  function askDelComment(id) {
+    const c = CM.find(x => x.id === id);
+    if (!c || !c.can_delete) return;
+    cDelId = id;
+    $("cDelText").textContent = c.user_name + "의 댓글. 쓴 사람과 owner 만 삭제 가능";
+    openModal("cDelModal");
+  }
+  $("cDelYes").onclick = async () => {
+    const btn = $("cDelYes");
+    btn.disabled = true;
+    try {
+      await API.del(`/comments/${cDelId}`);
+      CM = CM.filter(x => x.id !== cDelId);
+      closeAll(); renderComments();
+    } catch (e) { fail(e); }
+    finally { btn.disabled = false; }
+  };
+
+  const count = () => { $("cCount2").textContent = $("cInput").value.length + " / 500"; };
+  $("cInput").addEventListener("input", count);
+  $("cInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing && !$("cBtn").disabled) $("cBtn").click();
+  });
+  $("cBtn").onclick = async () => {
+    const content = $("cInput").value.trim();
+    if (!content) { $("cInput").focus(); return; }
+    const btn = $("cBtn");
+    btn.disabled = true; btn.textContent = "등록 중...";
+    try {
+      const c = await API.post(`/meetings/${MEETING_ID}/comments`, { content });
+      CM.push(c);
+      newCommentId = c.id;
+      $("cInput").value = ""; count();
+      renderComments();
+      ok("댓글 등록");
+    } catch (e) {
+      if (e.code === "MEETING_NOT_FOUND") notFound();
+      else fail(e);
+    } finally {
+      btn.disabled = false; btn.textContent = "등록";
+    }
+  };
+
+  // ── 시작 ────────────────────────────────────────────
+  (async function start() {
+    document.querySelectorAll("main > *").forEach(el => el.classList.add("invisible"));
+    let ctx;
+    try { ctx = await API.boot(); }
+    catch (e) { fail(e); return; }
+    $("viewer").textContent = `${ctx.user.name} · ${ctx.team.name}`;
+
+    if (!Number.isInteger(MEETING_ID) || MEETING_ID <= 0) { notFound(); return; }
+
+    try {
+      const [m, comments] = await Promise.all([
+        API.get(`/meetings/${MEETING_ID}`),
+        API.get(`/meetings/${MEETING_ID}/comments`),
+      ]);
+      M = m; TODOS = m.todos || []; CM = comments || [];
+    } catch (e) {
+      if (e.status === 404) notFound();
+      else fail(e);
+      return;
+    }
+    document.title = `MeetingNote Pro - ${M.title}`;
+    renderHead(); renderTodos(); renderComments();
+    document.querySelectorAll("main > *").forEach(el => el.classList.remove("invisible"));
+
+    // 담당자 후보 - 실패해도 화면은 그대로 (미정만 고를 수 있음)
+    try { MEMBERS = await API.get(`/teams/${ctx.team.id}/members`); renderTodos(); }
+    catch (e) { fail(e); }
+  })();
+</script>
+</body>
+</html>
