@@ -220,16 +220,28 @@
   $("to").addEventListener("change", () => load());
 
   // ── 새 회의록 팝업 (C-05 ~ C-10) ──────────────────────────
-  const REQ_NOTE = "제목 · 회의 시각 · 본문 필수";
-  const filled = () => !!($("nTitle").value.trim() && FMT.localInputToIso($("nAt").value) && $("nBody").value.trim());
+  // 필수 칸 - 빠진 칸 이름을 안내 줄에 보이고, 건드린 뒤 빈 칸은 붉은 테두리 (fix-meeting-save-hint)
+  const REQUIRED = [
+    ["nTitle", "제목", () => $("nTitle").value.trim()],
+    ["nAt",    "회의 시각", () => FMT.localInputToIso($("nAt").value)],
+    ["nBody",  "본문", () => $("nBody").value.trim()]
+  ];
+  const touched = new Set();      // 받아쓰기 완료 · blur · 저장 시도 뒤에만 붉게
+  let info = "";                  // 업로드 · 실패 같은 상황 안내. 빠진 칸 안내가 우선
+  const missing = () => REQUIRED.filter(([, , has]) => !has());
+  const filled = () => missing().length === 0;
+  const setNote = (t) => { info = t || ""; syncSave(); };
   const setSave = (on, text) => { $("saveBtn").disabled = !on; $("saveBtn").textContent = text || "정리하기"; };
   const syncSave = () => {
     if (saving) return;
-    setSave(!uploading && filled());
-    if (!uploading && !filled() && !$("saveNote").textContent) $("saveNote").textContent = REQ_NOTE;
-    if (filled() && $("saveNote").textContent === REQ_NOTE) $("saveNote").textContent = "";
+    const miss = missing();
+    setSave(!uploading && !miss.length);
+    REQUIRED.forEach(([id, , has]) => $(id).classList.toggle("border-red-dot", touched.has(id) && !has()));
+    $("saveNote").textContent = (!uploading && miss.length) ? miss.map(([, name]) => name).join(" · ") + " 필수" : info;
   };
+  const touchAll = () => REQUIRED.forEach(([id]) => touched.add(id));
   ["nTitle","nAt","nWho","nBody"].forEach(i => $(i).addEventListener("input", syncSave));
+  REQUIRED.forEach(([id]) => $(id).addEventListener("blur", () => { touched.add(id); syncSave(); }));
   $("nAt").addEventListener("change", syncSave);
 
   // 놓을 칸 모양: idle 기본 · drag 끌어 오는 중 · file 올라간 파일 · err 거부
@@ -270,6 +282,8 @@
     ["nTitle","nAt","nWho","nBody"].forEach(i => $(i).value = "");
     $("fileInput").value = "";
     $("nBody").classList.remove("border-green-dot");
+    touched.clear(); info = "";
+    REQUIRED.forEach(([id]) => $(id).classList.remove("border-red-dot"));
     dropView("idle"); setSave(true); $("saveNote").textContent = "";
   };
   const openModal = () => {
@@ -319,8 +333,7 @@
     const seq = ++uploadSeq;
     uploading = true;
     $("nBody").classList.remove("border-green-dot");
-    $("saveNote").textContent = "끝나면 본문 칸이 채워짐";
-    syncSave();
+    setNote("끝나면 본문 칸이 채워짐");
     dropView("file", {name:f.name, size:mb, state:"업로드 중", tone:"blue"});
     progress(0, "업로드 0%");
     const onProgress = (pct) => {
@@ -337,23 +350,25 @@
       $("nBody").value = (res && res.body) || "";
       $("nBody").classList.add("border-green-dot");
       dropView("file", {name:f.name, size:mb, state:"받아쓰기 완료", tone:"green"});
-      $("saveNote").textContent = "본문만 채워짐. 저장은 아직";
-      syncSave();
+      // 받아쓰기가 끝나면 빈 필수 칸을 붉게 보이고, 제목이 비었으면 제목 칸으로
+      touchAll();
+      setNote("본문만 채워짐. 저장은 아직");
+      if (!$("nTitle").value.trim()) $("nTitle").focus();
     } catch (e) {
       if (seq !== uploadSeq) return;
       uploading = false;
       if (e.status === 415 || e.code === "UNSUPPORTED_MEDIA_TYPE") {          // C-08
         dropView("err", {name:f.name, size:mb, state:"업로드 거부", tone:"red"});
         dropErr(TYPE_ERR);
-        $("saveNote").textContent = "";
+        info = "";
       } else if (e.status === 502) {                                         // C-09
         dropView("err", {name:f.name, size:mb, state:"받아쓰기 실패", tone:"red"});
         dropErr(STT_ERR);
-        $("saveNote").textContent = "본문을 붙여넣으면 저장 가능";
+        info = "본문을 붙여넣으면 저장 가능";
       } else {
         dropView("err", {name:f.name, size:mb, state:"업로드 실패", tone:"red"});
         dropErr(e.msg + ". 본문 칸에 메모를 직접 붙여넣으면 저장할 수 있음");
-        $("saveNote").textContent = "본문을 붙여넣으면 저장 가능";
+        info = "본문을 붙여넣으면 저장 가능";
       }
       syncSave();
     }
@@ -362,7 +377,7 @@
   // C-10 정리 중 · C-11 저장 완료
   $("saveBtn").onclick = async () => {
     if (saving || uploading) return;
-    if (!filled()) { $("saveNote").textContent = REQ_NOTE; syncSave(); return; }
+    if (!filled()) { touchAll(); syncSave(); return; }
     const payload = {
       title: $("nTitle").value.trim(),
       met_at: FMT.localInputToIso($("nAt").value),
@@ -378,7 +393,7 @@
     } catch (e) {
       // 502 구분 실패 등 - 본문은 그대로 두고 다시 정리할 수 있게
       saving = false;
-      $("saveNote").textContent = e.status === 502 ? "정리 실패 - 본문은 그대로. 다시 정리하기 가능" : e.msg;
+      info = e.status === 502 ? "정리 실패 - 본문은 그대로. 다시 정리하기 가능" : e.msg;
       syncSave();
       window.toast("red", e.status === 502 ? "정리 실패 - 저장되지 않음" : "저장 실패", esc(e.msg));
       return;

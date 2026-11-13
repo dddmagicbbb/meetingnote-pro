@@ -10,6 +10,20 @@ with sync_playwright() as p:
     ok("헤더 이름·팀", "김대리" in pg.inner_text("#teamName") and team["name"] in pg.inner_text("#teamName"))
     pg.click("#newBtn"); ok("C-05 새 회의록 팝업", pg.is_visible("#newModal"))
     ok("필수값 없으면 저장 잠김", pg.is_disabled("#saveBtn"))
+    # fix-meeting-save-hint - 빠진 필수 칸 안내
+    ok("막 연 상태: 「제목 · 본문 필수」, 붉은 테두리 없음",
+       "제목 · 본문 필수" in pg.inner_text("#saveNote") and "border-red-dot" not in pg.get_attribute("#nTitle","class"))
+    pg.route("**/api/upload", lambda route: route.fulfill(status=200, content_type="application/json",
+             body='{"body":"김대리: 목록은 제가 다음 주 금요일까지 하겠습니다."}'))
+    pg.set_input_files("#fileInput", files=[{"name":"회의_녹음.wav","mimeType":"audio/wav","buffer":b"RIFF\x00\x00\x00\x00WAVEfmt "+b"\x00"*32}])
+    pg.wait_for_function("document.getElementById('nBody').value.length>0", timeout=8000)
+    ok("녹음만 올리고 제목 빈 경우: 「제목 필수」 · 붉은 제목 칸 · 커서 · 잠김",
+       pg.inner_text("#saveNote").strip()=="제목 필수" and "border-red-dot" in pg.get_attribute("#nTitle","class")
+       and pg.evaluate("document.activeElement.id")=="nTitle" and pg.is_disabled("#saveBtn"))
+    pg.fill("#nTitle","임시 제목")
+    ok("빠진 칸 채움: 안내 · 붉은 테두리 사라지고 정리하기 켜짐",
+       "필수" not in pg.inner_text("#saveNote") and "border-red-dot" not in pg.get_attribute("#nTitle","class") and not pg.is_disabled("#saveBtn"))
+    pg.unroute("**/api/upload"); pg.fill("#nTitle",""); pg.fill("#nBody","")
     pg.set_input_files("#fileInput", files=[{"name":"회의_녹화.mp4","mimeType":"video/mp4","buffer":b"\x00\x00\x00\x18ftypmp42"+b"\0"*32}])
     pg.wait_for_function("document.getElementById('newModal').innerText.includes('mp3 또는 wav')", timeout=8000); ok("C-08 mp4 거부(서버 내용 판정)", "mp3 또는 wav" in pg.inner_text("#newModal"))
     pg.fill("#nTitle","2차 스프린트 계획 회의"); pg.fill("#nWho","김대리, 박과장"); pg.fill("#nBody",BODY)
