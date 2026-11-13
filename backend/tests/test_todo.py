@@ -128,3 +128,64 @@ def test_create_requires_what(squad, client):
 def test_other_team_todos_forbidden(squad, api, client):
     outsider = api.signup("외부")
     err(client.get(f"/api/teams/{squad['tid']}/todos", headers=outsider.h), 403, "FORBIDDEN")
+
+
+# ── 기한 날짜 (modify-todo-due-date) ─────────────────────
+from datetime import timedelta  # noqa: E402
+
+from backend.duedate import kst_date  # noqa: E402
+
+
+def test_direct_due_uses_registration_day(squad, client):
+    t = add(client, squad["kim"], squad["tid"], "x", due_text="다음 주까지")
+    assert t["due_date"] == (kst_date(None) + timedelta(days=7)).isoformat()
+    assert t["due_text"] == "다음 주까지"
+
+
+def test_direct_undecidable_due(squad, client):
+    t = add(client, squad["kim"], squad["tid"], "x", due_text="다음 분기")
+    assert t["due_date"] is None and t["due_text"] == "다음 분기"
+
+
+def test_edit_due_text_recomputes_from_meeting_date(squad, api, client, fake_gemini):
+    m = api.meeting(squad["kim"], squad["tid"])  # 회의 9/24(목)
+    todo_id = m["todos"][2]["id"]
+    r = client.put(f"/api/todos/{todo_id}", json={"due_text": "다음 주까지"}, headers=squad["kim"].h)
+    assert r.status_code == 200
+    assert r.json()["due_date"] == "2026-10-01" and r.json()["due_text"] == "다음 주까지"
+    r = client.put(f"/api/todos/{todo_id}", json={"due_text": "곧"}, headers=squad["kim"].h)
+    assert r.json()["due_date"] is None
+
+
+def test_sort_by_due_date_nulls_last(squad, api, client, fake_gemini):
+    fake_gemini["classify_result"] = {"summary": "s", "decisions": [], "todos": [
+        {"what": "a", "assignee": "", "due": "다음 주 금요일"},   # 10-02
+        {"what": "b", "assignee": "", "due": "다음 분기"},        # null
+        {"what": "c", "assignee": "", "due": "이번 주 안"},       # 09-25
+    ]}
+    api.meeting(squad["kim"], squad["tid"])
+    rows = client.get(f"/api/teams/{squad['tid']}/todos", headers=squad["kim"].h).json()
+    assert [r["what"] for r in rows] == ["c", "a", "b"]
+    assert [r["due_date"] for r in rows] == ["2026-09-25", "2026-10-02", None]
+
+
+def test_migrate_adds_column_and_fills(tmp_path):
+    import sqlalchemy as sa
+
+    from backend.db import Base, migrate
+    eng = sa.create_engine(f"sqlite:///{(tmp_path / 'old.db').as_posix()}")
+    Base.metadata.create_all(eng)
+    with eng.begin() as c:
+        c.execute(sa.text("ALTER TABLE todos DROP COLUMN due_date"))  # 옛 스키마 흉내
+        c.execute(sa.text("INSERT INTO users (id,email,password_hash,name,created_at) VALUES (1,'a@a.com','x','a','2026-01-01')"))
+        c.execute(sa.text("INSERT INTO teams (id,name,invite_code,owner_id,created_at) VALUES (1,'t','MN-AAAA',1,'2026-01-01')"))
+        c.execute(sa.text("INSERT INTO meetings (id,team_id,title,met_at,attendees,body,summary,decisions,author_id,created_at) "
+                          "VALUES (1,1,'m','2026-09-24 05:00:00','','b','','',1,'2026-09-24')"))
+        c.execute(sa.text("INSERT INTO todos (team_id,meeting_id,what,due_text,status,author_id,created_at) VALUES "
+                          "(1,1,'a','다음 주 금요일','OPEN',1,'2026-09-24'),(1,1,'b','다음 분기','OPEN',1,'2026-09-24'),"
+                          "(1,NULL,'c','내일','OPEN',1,'2026-11-13 01:00:00')"))
+    assert migrate(eng) == 2
+    assert migrate(eng) == 0  # 두 번 돌려도 같음
+    with eng.connect() as c:
+        got = dict(c.execute(sa.text("SELECT what, due_date FROM todos")).all())
+    assert got == {"a": "2026-10-02", "b": None, "c": "2026-11-14"}

@@ -120,11 +120,14 @@
   const busy = new Set();   // PUT · DELETE 중인 카드 id
 
   const whoOf = (t) => t.assignee_id == null ? "미정" : (t.assignee_name || "미정");
-  const dueOf = (t) => String(t.due_text || "").trim() || "미정";
+  // 기한 칩 - 날짜 굵게 + 원래 글자 옅게 (modify-todo-due-date)
+  const dueHtml = (t) => { const d = FMT.due(t); return esc(d.main) + (d.sub ? ` <span class="font-normal text-ink-3 dark:text-dim">${esc(d.sub)}</span>` : ""); };
   const srcOf = (t) => t.meeting_title || "직접 등록";
   const findT = (id) => DATA.find(x => x.id === id);
   const sortData = () => DATA.sort((a, b) =>
     (ORDER.indexOf(a.status) - ORDER.indexOf(b.status)) ||
+    ((a.due_date ? 0 : 1) - (b.due_date ? 0 : 1)) ||
+    String(a.due_date || "").localeCompare(String(b.due_date || "")) ||
     (String(a.due_text || "") < String(b.due_text || "") ? -1 : String(a.due_text || "") > String(b.due_text || "") ? 1 : 0) ||
     (a.id - b.id));
 
@@ -174,7 +177,7 @@
           </div>` : ""}
         </span>
         <button type="button" data-act="due" data-id="${t.id}"
-          class="px-2 py-0.5 rounded-md text-[10px] font-bold ${late ? "text-red-text dark:text-red-dot" : "text-ink-2 dark:text-dim"} bg-page dark:bg-chip hover:ring-1 hover:ring-ink-3 transition">${esc(dueOf(t))}</button>
+          class="px-2 py-0.5 rounded-md text-[10px] font-bold ${late ? "text-red-text dark:text-red-dot" : "text-ink-2 dark:text-dim"} bg-page dark:bg-chip hover:ring-1 hover:ring-ink-3 transition">${dueHtml(t)}</button>
         <button type="button" data-act="del" data-id="${t.id}" ${t.can_delete && !busy.has(t.id) ? "" : "disabled"}
           class="ml-auto px-2 py-0.5 rounded-md text-[10px] font-bold bg-page dark:bg-chip transition ${t.can_delete ? "text-red-text dark:text-red-dot hover:ring-1 hover:ring-red-dot" : "text-ink-3 dark:text-dim opacity-40 cursor-not-allowed"}">삭제</button>
       </div>

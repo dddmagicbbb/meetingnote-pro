@@ -7,6 +7,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import gemini
+from ..duedate import kst_date, parse_due
 from ..db import get_db
 from ..deps import current_user, iso, membership_of, parse_iso, record, require_member
 from ..errors import ApiError
@@ -132,10 +133,12 @@ def create_meeting(team_id: int, data: MeetingIn, user: User = Depends(current_u
     db.add(m)
     db.flush()
     record(db, team_id, user.id, "meeting_add", f"회의록 「{title}」 등록")
+    base = kst_date(met_at)  # 기한은 회의 날짜 기준 (modify-todo-due-date)
     for t in result["todos"]:
         assignee = match_member(t["assignee"], lookup)
-        db.add(Todo(team_id=team_id, meeting_id=m.id, what=t["what"][:500], due_text=t["due"][:100],
-                    status="OPEN", assignee_id=assignee, author_id=user.id))
+        due_text = t["due"][:100]
+        db.add(Todo(team_id=team_id, meeting_id=m.id, what=t["what"][:500], due_text=due_text,
+                    due_date=parse_due(due_text, base), status="OPEN", assignee_id=assignee, author_id=user.id))
         if assignee:
             record(db, team_id, user.id, "todo_assign", f"할 일 「{t['what'][:100]}」 를 {names[assignee]}에게 배정")
     db.commit()

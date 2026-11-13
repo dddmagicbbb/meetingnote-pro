@@ -127,9 +127,9 @@
   const STATUS_LABEL = { OPEN: "대기", DOING: "진행", DONE: "완료" };
   const KIND_COLOR = { meeting_add: "blue", todo_assign: "orange", todo_done: "green", comment_add: "purple", member_join: "purple" };
   const CARD_CYCLE = ["blue", "green", "orange", "purple", "red"];
-  const LATE_WORDS = ["어제", "지난주", "지난달"];
-  // 기한 지남 - 「어제 · 지난주 · 지난달」 셋만, 완료 제외 (정의서 7-2)
-  const isLate = (todo) => todo.status !== "DONE" && LATE_WORDS.includes(String(todo.due_text || "").replace(/\s/g, ""));
+  // 기한 지남 - due_date 가 보는 사람의 오늘보다 앞이고 완료가 아님. 날짜가 없으면 판정하지 않음 (modify-todo-due-date)
+  const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const isLate = (todo) => todo.status !== "DONE" && !!todo.due_date && todo.due_date < todayStr();
 
   window.API = {
     ApiError, call, upload, boot, token, setToken, clearToken,
@@ -141,7 +141,21 @@
     },
     logout: async () => { try { await call("POST", "/auth/logout"); } catch {} clearToken(); location.replace("/login.html"); },
   };
-  window.FMT = { dateTime: fmtDateTime, date: fmtDate, relative: fmtRelative, localInputToIso, isoToLocalInput };
+  // 기한 - 「10월 2일 (금)」 + 원래 글자. 날짜가 없으면 글자, 둘 다 없으면 「미정」
+  const WD = ["일", "월", "화", "수", "목", "금", "토"];
+  function fmtDueDate(ymd) {
+    if (!ymd) return "";
+    const [y, m, d] = ymd.split("-").map(Number);
+    return `${m}월 ${d}일 (${WD[new Date(y, m - 1, d).getDay()]})`;
+  }
+  function dueLabel(todo) {
+    const date = fmtDueDate(todo.due_date);
+    const text = String(todo.due_text || "").trim();
+    if (date) return { main: date, sub: text };
+    return { main: text || "미정", sub: "" };
+  }
+  window.FMT = { dateTime: fmtDateTime, date: fmtDate, relative: fmtRelative, localInputToIso, isoToLocalInput,
+                 dueDate: fmtDueDate, due: dueLabel };
   window.esc = esc;
   window.EMAIL_RE = EMAIL_RE;
   window.PAL = { STATUS_COLOR, STATUS_LABEL, KIND_COLOR, CARD_CYCLE, isLate };

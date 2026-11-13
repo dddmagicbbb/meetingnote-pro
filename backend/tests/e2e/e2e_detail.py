@@ -10,6 +10,8 @@ with sync_playwright() as p:
     pg=page_as(b,kim,f"/detail.html?id={m['id']}"); pg.wait_for_timeout(500)
     ok("D-01 제목·요약·결정", "2차 스프린트" in pg.input_value("#title") and pg.inner_text("#summary").strip()!="" and pg.locator("#decisions > *").count()==max(1,len(m["decisions"])))
     ok("D-01 본문 접힘", not pg.is_visible("#body"))
+    dated=[t for t in m["todos"] if t.get("due_date")]
+    ok("상세: 기한 날짜 표시(modify-todo-due-date)", (not dated) or pg.locator(".due-date").count()==len(dated))
     pg.click("#bodyToggle"); ok("D-07 본문 펼침", pg.is_visible("#body") and "목록 화면" in pg.inner_text("#body"))
     ok("수정·삭제 활성(작성자)", not pg.is_disabled("#editBtn") and not pg.is_disabled("#delBtn"))
     if m["todos"]:

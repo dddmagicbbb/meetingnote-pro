@@ -26,3 +26,35 @@ def get_db():
 def create_all():
     from . import models  # noqa: F401 - 테이블 등록
     Base.metadata.create_all(engine)
+    migrate()
+
+
+def migrate(bind=None) -> int:
+    """기존 DB 이관 - todos.due_date 열이 없으면 더하고, 빈 due_date 를 기한 글자로 채운다.
+
+    여러 번 돌려도 결과가 같다. 채운 행 수를 돌려준다 (modify-todo-due-date).
+    """
+    from sqlalchemy import inspect, select, text
+    from sqlalchemy.orm import Session
+
+    from .duedate import kst_date, parse_due
+    from .models import Meeting, Todo
+
+    bind = bind or engine
+    cols = {c["name"] for c in inspect(bind).get_columns("todos")}
+    if "due_date" not in cols:
+        with bind.begin() as conn:
+            conn.execute(text("ALTER TABLE todos ADD COLUMN due_date DATE"))
+    filled = 0
+    with Session(bind) as db:
+        rows = db.execute(
+            select(Todo, Meeting.met_at).outerjoin(Meeting, Meeting.id == Todo.meeting_id)
+            .where(Todo.due_date.is_(None), Todo.due_text != "")
+        ).all()
+        for todo, met_at in rows:
+            d = parse_due(todo.due_text, kst_date(met_at or todo.created_at))
+            if d is not None:
+                todo.due_date = d
+                filled += 1
+        db.commit()
+    return filled

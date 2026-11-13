@@ -257,3 +257,22 @@ def test_other_team_meeting_is_not_found(squad, api, client, fake_gemini):
     outsider = api.signup("외부")
     api.team(outsider, "다른팀")
     err(client.get(f"/api/meetings/{m['id']}", headers=outsider.h), 404, "MEETING_NOT_FOUND")
+
+
+# ── 기한 날짜 (modify-todo-due-date) ─────────────────────
+def test_save_converts_due_by_meeting_date(squad, api, fake_gemini):
+    # met_at 2026-09-24T05:00Z = 한국 9/24(목) 14:00
+    m = api.meeting(squad["kim"], squad["tid"])
+    by = {t["what"]: t for t in m["todos"]}
+    assert by["목록 화면 및 검색 구현"]["due_text"] == "다음 주 금요일"
+    assert by["목록 화면 및 검색 구현"]["due_date"] == "2026-10-02"
+    assert by["받아쓰기 오류 처리"]["due_date"] == "2026-09-25"   # 이번 주 안 → 그 주 금요일
+    assert by["사용자 다섯 분 인터뷰"]["due_date"] is None and by["사용자 다섯 분 인터뷰"]["due_text"] == ""
+
+
+def test_due_base_is_korean_date_of_meeting(squad, api, fake_gemini):
+    # UTC 9/23 15:30 = 한국 9/24 00:30 → 기준일 9/24
+    fake_gemini["classify_result"] = {"summary": "s", "decisions": [],
+                                      "todos": [{"what": "x", "assignee": "", "due": "내일"}]}
+    m = api.meeting(squad["kim"], squad["tid"], met_at="2026-09-23T15:30:00Z")
+    assert m["todos"][0]["due_date"] == "2026-09-25"

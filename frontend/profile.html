@@ -128,8 +128,9 @@
     const late = window.PAL.isLate(t);
     const color = late ? "red" : window.PAL.STATUS_COLOR[t.status];
     const dueCls = late ? window.LABEL.red : "text-ink-2 dark:text-dim";
-    const due = t.due_text
-      ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-surface ${dueCls}">${esc(t.due_text)}</span>`
+    const d = window.FMT.due(t);   // 날짜 + 원래 글자 (modify-todo-due-date)
+    const due = (t.due_date || t.due_text)
+      ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-surface ${dueCls}">${esc(d.main)}${d.sub ? ` <span class="font-normal text-ink-3 dark:text-dim">${esc(d.sub)}</span>` : ""}</span>`
       : "";
     return `
       <li class="rounded-xl bg-page dark:bg-chip border border-line dark:border-edge ${window.STRIPE[color]} px-3.5 py-2.5">

@@ -267,6 +267,7 @@
         </span>
         <input data-i="${i}" value="${esc(t.due_text || "")}" placeholder="미정" aria-label="기한" maxlength="100"
           class="due w-28 px-2 py-1 rounded-md bg-white dark:bg-surface border border-line dark:border-edge text-[11px] font-bold text-ink-2 dark:text-dim focus:outline-none focus:border-blue-dot transition">
+        ${t.due_date ? `<span class="due-date text-[11px] font-bold ${window.PAL.isLate(t) ? window.LABEL.red : "text-ink-3 dark:text-dim"}">${esc(FMT.dueDate(t.due_date))}</span>` : ""}
         <span class="relative ml-auto">
           <button type="button" data-open="status" data-i="${i}"
             class="px-2 py-1 rounded-md bg-white dark:bg-surface border text-[11px] font-extrabold ${window.LABEL[color]} transition

@@ -1,7 +1,7 @@
 """DB 7테이블 (정의서 6). 시각은 UTC naive datetime 으로 저장한다."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -59,7 +59,8 @@ class Todo(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     meeting_id: Mapped[int | None] = mapped_column(ForeignKey("meetings.id"), nullable=True, index=True)
     what: Mapped[str] = mapped_column(String(500))
-    due_text: Mapped[str] = mapped_column(String(100), default="")
+    due_text: Mapped[str] = mapped_column(String(100), default="")  # 들은 글자 그대로
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # 기준일로 바꾼 날짜 (duedate.parse_due)
     status: Mapped[str] = mapped_column(String(10), default="OPEN")  # OPEN | DOING | DONE
     assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

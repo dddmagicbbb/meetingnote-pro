@@ -4,7 +4,8 @@ from playwright.sync_api import sync_playwright
 api,team,kim,park,lee=seed(); tid=team["id"]
 def add(what, who=None, due=""):
     return api.post(f"/teams/{tid}/todos",json={"what":what,"assignee_id":who,"due_text":due},headers=kim["h"]).json()
-a=add("목록 화면 구현",kim["id"],"다음 주 금요일"); late=add("배포 키 이전",kim["id"],"지난주"); un=add("사용자 인터뷰"); pk=add("박 업무",park["id"],"어제")
+a=add("목록 화면 구현",kim["id"],"다음 주 금요일"); late=add("배포 키 이전",kim["id"],"어제"); un=add("사용자 인터뷰"); pk=add("박 업무",park["id"],"어제")
+word=add("지난주 말한 일",kim["id"],"지난주"); today=add("오늘 할 일",kim["id"],"오늘")
 def col(pg,key): return pg.locator(f'[data-col="{key}"]')
 def status(i): return [t for t in api.get(f"/teams/{tid}/todos",headers=kim["h"]).json() if t["id"]==i][0]
 with sync_playwright() as p:
@@ -17,6 +18,15 @@ with sync_playwright() as p:
     ok("E-09 담당자 미정 표시", "미정" in pg.locator(f'article[data-id="{un["id"]}"]').inner_text())
     ok("E-08 기한 지남 붉은 띠", "border-l-red-dot" in pg.locator(f'article[data-id="{late["id"]}"]').get_attribute("class"))
     ok("기한 정상은 붉은 띠 아님", "border-l-red-dot" not in pg.locator(f'article[data-id="{a["id"]}"]').get_attribute("class"))
+    # modify-todo-due-date - 날짜 기준 지남 판정과 날짜 표시
+    cls=lambda t: pg.locator(f'article[data-id="{t["id"]}"]').get_attribute("class")
+    ok("오늘이 기한이면 붉은 띠 아님", "border-l-red-dot" not in cls(today))
+    ok("날짜 없는 「지난주」 는 붉은 띠 아님", "border-l-red-dot" not in cls(word))
+    chip=pg.locator(f'[data-act="due"][data-id="{a["id"]}"]').inner_text()
+    import re as _re
+    ok("기한 칩: 날짜 + 원래 글자", bool(_re.search(r"\d+월 \d+일 \([월화수목금토일]\)", chip)) and "다음 주 금요일" in chip)
+    ok("날짜 못 정한 칩은 글자만", pg.locator(f'[data-act="due"][data-id="{word["id"]}"]').inner_text().strip()=="지난주")
+    ok("isLate 날짜 비교", pg.evaluate("PAL.isLate({status:'OPEN',due_date:'2000-01-01'}) && !PAL.isLate({status:'DONE',due_date:'2000-01-01'}) && !PAL.isLate({status:'OPEN',due_text:'지난주'})"))
     # E-03/04 포인터 끌기
     card=pg.locator(f'article[data-id="{a["id"]}"]'); box=card.bounding_box(); tgt=col(pg,"DOING").bounding_box()
     puts=[]; pg.on("request", lambda q: puts.append(q.url) if q.method=="PUT" else None)

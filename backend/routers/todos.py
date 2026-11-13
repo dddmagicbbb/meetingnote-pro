@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..duedate import kst_date, parse_due
 from ..deps import current_user, iso, membership_of, record, require_member
 from ..errors import ApiError
 from ..models import Meeting, Membership, Todo, User
@@ -42,15 +43,25 @@ def todo_dicts(db: Session, user: User, todos) -> list[dict]:
     titles = dict(db.execute(select(Meeting.id, Meeting.title).where(Meeting.id.in_(meeting_ids))).all()) if meeting_ids else {}
     return [{
         "id": t.id, "what": t.what, "assignee_id": t.assignee_id, "assignee_name": names.get(t.assignee_id),
-        "due_text": t.due_text, "status": t.status, "meeting_id": t.meeting_id,
+        "due_text": t.due_text, "due_date": t.due_date.isoformat() if t.due_date else None, "status": t.status, "meeting_id": t.meeting_id,
         "meeting_title": titles.get(t.meeting_id), "author_id": t.author_id,
         "can_delete": can_delete(db, user, t), "created_at": iso(t.created_at),
     } for t in todos]
 
 
 def sort_todos(todos) -> list[Todo]:
-    """status(OPEN · DOING · DONE) 다음 due_text."""
-    return sorted(todos, key=lambda t: (STATUSES.index(t.status) if t.status in STATUSES else 9, t.due_text or "", t.id))
+    """status(OPEN · DOING · DONE) 다음 due_date(빈 값은 뒤) 다음 due_text."""
+    return sorted(todos, key=lambda t: (STATUSES.index(t.status) if t.status in STATUSES else 9,
+                                        t.due_date is None, t.due_date or "", t.due_text or "", t.id))
+
+
+def base_date(db: Session, t: Todo):
+    """기한 기준일 - 회의록 할 일은 회의 날짜, 직접 등록은 등록한 날 (한국 날짜)."""
+    if t.meeting_id:
+        m = db.get(Meeting, t.meeting_id)
+        if m is not None:
+            return kst_date(m.met_at)
+    return kst_date(t.created_at)
 
 
 def check_assignee(db: Session, team_id: int, assignee_id: int | None) -> User | None:
@@ -80,7 +91,9 @@ def create_todo(team_id: int, data: TodoIn, user: User = Depends(current_user), 
     require_member(db, user, team_id)
     what = check_what(data.what)
     assignee = check_assignee(db, team_id, data.assignee_id)
-    t = Todo(team_id=team_id, meeting_id=None, what=what, due_text=data.due_text.strip()[:100],
+    due_text = data.due_text.strip()[:100]
+    t = Todo(team_id=team_id, meeting_id=None, what=what, due_text=due_text,
+             due_date=parse_due(due_text, kst_date(None)),  # 직접 등록은 등록한 날 기준
              status="OPEN", assignee_id=assignee.id if assignee else None, author_id=user.id)
     db.add(t)
     if assignee:
@@ -116,6 +129,7 @@ def update_todo(todo_id: int, data: TodoUpdate, user: User = Depends(current_use
         t.what = check_what(data.what)
     if "due_text" in sent and data.due_text is not None:
         t.due_text = data.due_text.strip()[:100]
+        t.due_date = parse_due(t.due_text, base_date(db, t))
     if "assignee_id" in sent:
         assignee = check_assignee(db, t.team_id, data.assignee_id)
         new_id = assignee.id if assignee else None
